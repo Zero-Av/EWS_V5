@@ -166,11 +166,16 @@ def init_db() -> None:
         )
     """)
     
-    # Attempt to add sentiment_score if table exists from before
+    # Attempt to add sentiment_score if table exists from before.
+    # Use a savepoint so that a duplicate-column error rolls back only this
+    # statement and does not abort the surrounding transaction (psycopg2 with
+    # autocommit=False would otherwise poison every subsequent cur.execute()).
+    cur.execute("SAVEPOINT add_sentiment_score")
     try:
         cur.execute("ALTER TABLE surveys ADD COLUMN sentiment_score REAL")
+        cur.execute("RELEASE SAVEPOINT add_sentiment_score")
     except Exception:
-        pass
+        cur.execute("ROLLBACK TO SAVEPOINT add_sentiment_score")
 
     # ── Model Drift Metrics ──
     cur.execute("""
