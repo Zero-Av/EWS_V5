@@ -4,7 +4,7 @@ import AppShell from "@/components/AppShell"
 import { getAnalyticsDashboard, getTrends, saveSnapshot, getDriftMetrics, getSurveySummary, downloadExcelReport } from "@/lib/api"
 import {
   Users, TrendingUp, AlertTriangle, CheckCircle,
-  Activity, BarChart2, Upload, Loader2, Gauge,
+  Activity, BarChart2, Upload, Loader2, Gauge, Zap,
 } from "lucide-react"
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
