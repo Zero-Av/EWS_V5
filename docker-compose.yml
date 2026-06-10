@@ -1,0 +1,85 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# All secrets come from .env (see .env.example).
+# NEVER hardcode credentials in this file.
+# Run: cp .env.example .env && fill in real values before deploying.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:15
+    container_name: ews_postgres
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./backend/data/pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: ews_backend
+    env_file:
+      - .env
+    environment:
+      - EWS_SECRET_KEY=${EWS_SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - HRIS_API_KEY=${HRIS_API_KEY}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - SNAPSHOT_SCHEDULE_ENABLED=${SNAPSHOT_SCHEDULE_ENABLED:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/models:/app/models
+      - ./backend/logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: ews_frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.13.0
+    container_name: ews_mlflow
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./mlflow:/mlflow
+    command: mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri /mlflow
+    restart: unless-stopped
+    profiles:
+      - mlflow   # opt-in: docker compose --profile mlflow up

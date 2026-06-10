@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens (used by CSS vars AND Tailwind colours) ─────────────────── */
+:root {
+  --bg:       #070d1a;
+  --surface:  #0d1625;
+  --surface2: #111e30;
+  --border:   #1a2a40;
+  --border2:  #243548;
+  --text:     #b8cfe0;
+  --muted:    #4a6580;
+  --accent:   #60a5fa;   /* matches Tailwind blue-400 */
+  --green:    #4ade80;   /* matches Tailwind green-400 */
+  --amber:    #fbbf24;   /* matches Tailwind amber-400 */
+  --red:      #f87171;   /* matches Tailwind red-400 */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Selection */
+::selection { background: rgba(96,165,250,.25); }
+
+@layer components {
+
+  /* ── Card ────────────────────────────────────────────────────────────── */
+  .card {
+    @apply bg-surface border border-border rounded-xl p-5;
+  }
+
+  /* ── Input / Textarea / Select ───────────────────────────────────────── */
+  .input {
+    @apply w-full bg-surface border border-border rounded-lg px-4 py-2.5
+           text-text text-sm font-mono outline-none transition-colors
+           placeholder:text-muted focus:border-accent;
+  }
+  /* Allow textarea to use the same class */
+  textarea.input { resize: vertical; }
+  select.input   { cursor: pointer; }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2
+           bg-accent/10 border border-accent/40 text-accent
+           font-mono text-sm px-5 py-2.5 rounded-lg
+           transition-all cursor-pointer
+           hover:bg-accent/20 hover:border-accent
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2
+           bg-transparent border border-border text-muted
+           font-mono text-sm px-4 py-2 rounded-lg
+           transition-all cursor-pointer
+           hover:border-border2 hover:text-text
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-2
+           bg-red/10 border border-red/40 text-red
+           font-mono text-sm px-4 py-2 rounded-lg
+           transition-all cursor-pointer
+           hover:bg-red/20
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* ── Badges ──────────────────────────────────────────────────────────── */
+  .badge-green {
+    @apply inline-flex items-center gap-1.5
+           bg-green/10 border border-green/30 text-green
+           text-xs font-mono px-2.5 py-1 rounded-full;
+  }
+  .badge-amber {
+    @apply inline-flex items-center gap-1.5
+           bg-amber/10 border border-amber/30 text-amber
+           text-xs font-mono px-2.5 py-1 rounded-full;
+  }
+  .badge-red {
+    @apply inline-flex items-center gap-1.5
+           bg-red/10 border border-red/30 text-red
+           text-xs font-mono px-2.5 py-1 rounded-full;
+  }
+  .badge-blue {
+    @apply inline-flex items-center gap-1.5
+           bg-accent/10 border border-accent/30 text-accent
+           text-xs font-mono px-2.5 py-1 rounded-full;
+  }
+
+  /* ── Section label (small all-caps divider heading) ─────────────────── */
+  .section-label {
+    @apply text-[10px] font-mono tracking-[0.2em] uppercase text-muted
+           border-b border-border pb-2 mb-4;
+  }
+
+  /* ── Stat card ───────────────────────────────────────────────────────── */
+  .stat-card {
+    @apply bg-surface border border-border rounded-xl p-5
+           flex flex-col gap-1;
+  }
+  .stat-val {
+    @apply font-mono text-2xl font-bold text-accent;
+  }
+  .stat-lbl {
+    @apply text-xs font-mono text-muted uppercase tracking-wider;
+  }
+
+  /* ── Alert / notice boxes ────────────────────────────────────────────── */
+  .alert-red {
+    @apply bg-red/10 border border-red/30 text-red
+           font-mono text-sm px-4 py-3 rounded-xl;
+  }
+  .alert-amber {
+    @apply bg-amber/10 border border-amber/30 text-amber
+           font-mono text-sm px-4 py-3 rounded-xl;
+  }
+  .alert-green {
+    @apply bg-green/10 border border-green/30 text-green
+           font-mono text-sm px-4 py-3 rounded-xl;
+  }
+  .alert-blue {
+    @apply bg-accent/10 border border-accent/30 text-accent
+           font-mono text-sm px-4 py-3 rounded-xl;
+  }
+}
