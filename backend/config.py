@@ -89,3 +89,7 @@ ZONE_COLORS = {
 }
 # PLOTLY_BG / PLOTLY_PAPER / PLOTLY_GRID / PLOTLY_TEXT removed — frontend is
 # Next.js; Python Plotly constants have no consumers in the active codebase.
+PLOTLY_BG     = "#070d1a"
+PLOTLY_PAPER  = "#0d1526"
+PLOTLY_GRID   = "#1e2d45"
+PLOTLY_TEXT   = "#cbd5e1"
