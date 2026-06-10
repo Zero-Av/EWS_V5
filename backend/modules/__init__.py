@@ -1,4 +1,4 @@
-from modules.training        import ModelTrainer, compute_risk_score, score_to_zone
+from modules.training        import ModelTrainer
 from modules.prediction      import EmployeePredictor
 from modules.evaluation      import ModelEvaluator
 from modules.recommendations import RecommendationEngine
