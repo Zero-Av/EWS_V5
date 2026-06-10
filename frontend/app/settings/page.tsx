@@ -209,7 +209,7 @@ export default function SettingsPage() {
             <div className="bg-[#070d1a] border border-border p-4 rounded-lg">
               <p className="font-mono text-sm text-text font-bold mb-1">Employee Hierarchy Sync</p>
               <p className="font-mono text-xs text-muted mb-3">CSV must contain: <code className="text-accent">employee_id, name, department, manager_username</code></p>
-              <FileDropzone onFileSelect={setEmpFile} selectedFile={empFile} />
+              <FileDropzone onFile={setEmpFile} current={empFile} />
               <button 
                 onClick={handleImportEmployees} 
                 disabled={!empFile || empUploading} 
@@ -224,7 +224,7 @@ export default function SettingsPage() {
             <div className="bg-[#070d1a] border border-border p-4 rounded-lg">
               <p className="font-mono text-sm text-text font-bold mb-1">Survey Ingestion</p>
               <p className="font-mono text-xs text-muted mb-3">CSV must contain: <code className="text-accent">employee_id, survey_date, survey_type, score</code></p>
-              <FileDropzone onFileSelect={setSurveyFile} selectedFile={surveyFile} />
+              <FileDropzone onFile={setSurveyFile} current={surveyFile} />
               <button 
                 onClick={handleIngestSurveys} 
                 disabled={!surveyFile || surveyUploading} 
