@@ -26,7 +26,7 @@ from modules.training      import (
     get_active_model_type, get_model_file,
     FeatureBuilder,
 )
-from modules.explainability import enrich_predictions_with_factors, invalidate_explainer_cache
+from modules.explainability import enrich_predictions_with_factors
 from config import (
     MODEL_FILE, SCALER_FILE, FEATURE_FILE, NUMERIC_FILE,
     EMBED_META_FILE, RISK_INV,

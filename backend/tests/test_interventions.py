@@ -2,7 +2,6 @@
 tests/test_interventions.py
 CRUD tests for the /interventions endpoints.
 """
-import pytest
  
  
 def test_list_interventions_requires_auth(client):

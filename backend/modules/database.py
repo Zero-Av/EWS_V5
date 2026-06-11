@@ -11,7 +11,6 @@ Thread-safe: each call gets its own connection.
 """
 
 import json
-import os
 from datetime import datetime, timezone
 
 from modules.db_adapter import _connect
@@ -438,11 +437,14 @@ def get_interventions(
         params.append(manager_username)
         
     if employee_id:
-        clauses.append("interventions.employee_id = %s"); params.append(str(employee_id))
+        clauses.append("interventions.employee_id = %s"); 
+        params.append(str(employee_id))
     if status:
-        clauses.append("interventions.status = %s"); params.append(status)
+        clauses.append("interventions.status = %s"); 
+        params.append(status)
     if assigned_to:
-        clauses.append("interventions.assigned_to = %s"); params.append(assigned_to)
+        clauses.append("interventions.assigned_to = %s"); 
+        params.append(assigned_to)
         
     where = "WHERE " + " AND ".join(clauses) if clauses else ""
     _cur4 = conn.cursor()
@@ -455,8 +457,10 @@ def get_interventions(
     data = [dict(r) for r in rows]
     for d in data:
         if d.get("actions"):
-            try: d["actions"] = json.loads(d["actions"])
-            except Exception: pass
+            try: 
+                d["actions"] = json.loads(d["actions"])
+            except Exception: 
+                pass
     return data
 
 def enforce_intervention_slas() -> int:

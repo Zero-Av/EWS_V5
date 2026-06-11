@@ -40,7 +40,7 @@ try:
 except ImportError:
     _MLFLOW_AVAILABLE = False
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import (
     RandomForestClassifier,

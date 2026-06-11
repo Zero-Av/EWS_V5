@@ -250,7 +250,7 @@ def _cli_test_llm_connection(provider: str):
 def test_engine_import():
     banner("TEST 2 — RecommendationEngine Import")
     try:
-        from modules.recommendations import RecommendationEngine, DEFAULT_REC
+        from modules.recommendations import DEFAULT_REC
         ok("RecommendationEngine imported successfully")
         ok(f"DEFAULT_REC keys: {list(DEFAULT_REC.keys())}")
         return True
@@ -468,12 +468,12 @@ def main():
         warn("LLM was NOT available — all recommendations used the rule-based fallback")
         print(f"\n  {C.BOLD}To enable LLM recommendations:{C.RESET}")
         if args.provider in ("auto", "anthropic"):
-            print(f"    export ANTHROPIC_API_KEY=sk-ant-your-key-here")
-            print(f"    python test_recommendations.py --provider anthropic")
+            print("    export ANTHROPIC_API_KEY=sk-ant-your-key-here")
+            print("    python test_recommendations.py --provider anthropic")
         if args.provider in ("auto", "ollama"):
-            print(f"    ollama serve")
-            print(f"    ollama pull qwen3:2b")
-            print(f"    python test_recommendations.py --provider ollama")
+            print("    ollama serve")
+            print("    ollama pull qwen3:2b")
+            print("    python test_recommendations.py --provider ollama")
     else:
         ok("LLM was connected and invoked")
         ok("RecommendationEngine passed all tests")

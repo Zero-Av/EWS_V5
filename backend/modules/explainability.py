@@ -30,11 +30,10 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
-from functools import lru_cache
 
 from config import (
     BEST_ESTIMATOR_FILE, BEST_ESTIMATOR_META,
-    MODEL_FILE, FEATURE_FILE, NUMERIC_FILE,
+    MODEL_FILE, FEATURE_FILE,
 )
 
 METRIC_LABELS = {

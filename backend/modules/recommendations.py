@@ -85,12 +85,12 @@ You are an HR retention specialist. Return ONLY a valid JSON object — no markd
 no explanation, no text before or after the JSON.
 
 Output format (exactly):
-{
+{{
   "priority": "CRITICAL" or "HIGH" or "MEDIUM",
   "timeline": "48 hours" or "1 week" or "2 weeks",
   "reasoning": "2 sentences referencing the employee's specific metric values",
   "actions": ["specific action 1", "specific action 2", "specific action 3"]
-}
+}}
 
 Rules:
 - RED zone → priority CRITICAL, timeline 48 hours

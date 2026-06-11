@@ -25,7 +25,7 @@ from typing import Annotated, Optional
 import pandas as pd
 from fastapi import (
     FastAPI, Depends, HTTPException, status,
-    UploadFile, File, Form, Query, Request, BackgroundTasks, Header
+    UploadFile, File, Form, Query, Request, Header
 )
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +37,13 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import time
+from modules.database import (
+    init_db,
+    db_get_user, db_authenticate_user, db_list_users,
+    db_create_user, db_delete_user, db_write_audit_log,
+)
+from modules.scheduler import init_scheduler
+import threading
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CONFIG
@@ -76,17 +83,13 @@ logger.add(
 )
 
 # Initialize DB on startup
-from modules.database import (
-    init_db,
-    db_get_user, db_authenticate_user, db_list_users,
-    db_create_user, db_delete_user, db_write_audit_log,
-)
+
 logger.info("Initializing database...")
 init_db()
 logger.info("Database initialized.")
 
 # Initialize background scheduler (opt-in via SNAPSHOT_SCHEDULE_ENABLED env)
-from modules.scheduler import init_scheduler
+
 init_scheduler()
 
 @app.middleware("http")
@@ -224,13 +227,17 @@ _llm_instance = None
 
 def _load_model_metadata():
     path = os.path.join("models", "metadata.json")
-    if not os.path.exists(path): return None
-    with open(path) as f: return json.load(f)
+    if not os.path.exists(path):
+        return None
+    with open(path) as f: 
+        return json.load(f)
 
 def _load_versions():
     path = os.path.join("models", "versions.json")
-    if not os.path.exists(path): return []
-    with open(path) as f: return json.load(f)
+    if not os.path.exists(path): 
+        return []
+    with open(path) as f: 
+        return json.load(f)
 
 def _df_from_upload(file: UploadFile) -> pd.DataFrame:
     content = file.file.read()
@@ -343,7 +350,7 @@ async def predict(
         raise HTTPException(status_code=500, detail=str(e))
 
 # ── Shared progress state for /recommend/progress ────────────────────────────
-import threading
+
 _rec_progress: dict = {}   # job_id → {done, total, current_employee, results}
 _rec_lock = threading.Lock()
 
@@ -362,7 +369,8 @@ async def recommend(
     from modules.prediction      import EmployeePredictor
     from modules.recommendations import RecommendationEngine
     from modules.data_validation import validate_prediction_data
-    import asyncio, uuid, threading
+    import uuid
+    import threading
 
     try:
         df        = _df_from_upload(file)
@@ -637,7 +645,7 @@ async def update_employee(
     Inserts a new snapshot row so the change is reflected in Trend Analysis.
     Also re-fires alerts if risk thresholds are crossed.
     """
-    from modules.database import update_employee_snapshot, create_alert_from_prediction, check_and_create_alerts, get_employee_history
+    from modules.database import update_employee_snapshot, check_and_create_alerts, get_employee_history
     try:
         new_snap = update_employee_snapshot(
             employee_id=str(employee_id),
@@ -810,7 +818,8 @@ async def switch_model(body: SwitchModelRequest, _: dict = Depends(require_admin
     The voting ensemble always stays active for predictions;
     this only changes which member backs the SHAP explanations.
     """
-    import shutil, json
+    import shutil
+    import json
     from modules.training      import MODEL_LABELS
     from modules.explainability import invalidate_explainer_cache
     from config import (
@@ -966,7 +975,8 @@ async def delete_user(username: str, user: dict = Depends(require_admin)):
 @app.get("/models/metadata", tags=["admin"])
 async def model_metadata(_: dict = Depends(require_admin)):
     m = _load_model_metadata()
-    if not m: raise HTTPException(status_code=404, detail="No trained model found")
+    if not m: 
+        raise HTTPException(status_code=404, detail="No trained model found")
     return m
 
 @app.get("/models/versions", tags=["admin"])

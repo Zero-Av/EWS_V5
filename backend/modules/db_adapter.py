@@ -2,7 +2,7 @@ import psycopg2
 from psycopg2.extras import DictCursor
 import os
 
-DB_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/ews")
+DB_URL = os.getenv("DATABASE_URL", "postgresql://ews_user:ews123@localhost:5432/ews")
 
 class SQLiteRowLikeDictCursor(DictCursor):
     def fetchone(self):
