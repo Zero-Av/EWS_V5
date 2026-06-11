@@ -213,7 +213,7 @@ def patch_engine_for_visibility(engine, verbose: bool):
 # TESTS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def test_llm_connection(provider: str):
+def _cli_test_llm_connection(provider: str):
     banner(f"TEST 1 — LLM Connection  (provider: {provider})")
     try:
         from modules.llm import get_llm
@@ -266,21 +266,17 @@ def test_fallback_mode():
     engine = RecommendationEngine(llm=None)
     info("Calling engine.generate() with llm=None…")
 
-    emp  = MOCK_PREDICTIONS[0]
-    rec  = engine.generate(
-        employee={"employee_id": emp["employee_id"], "risk_score": emp["risk_score"]},
-        prediction={"risk": emp["prediction"], "probabilities": emp["probabilities"]},
-        similar_employees=[],
+    emp = MOCK_PREDICTIONS[0]
+    # generate() takes a single flat row dict — same shape as a prediction result
+    rec = engine.generate(emp)
+    assert rec == DEFAULT_REC or rec.get("reasoning", "").startswith("Default"), (
+        f"Expected DEFAULT_REC when llm=None, got: {rec}"
     )
-    if rec == DEFAULT_REC or rec.get("reasoning", "").startswith("Default"):
-        ok("Correctly returned DEFAULT_REC when llm=None")
-    else:
-        warn("Got unexpected output (not DEFAULT_REC):")
+    ok("Correctly returned DEFAULT_REC when llm=None")
     print_json(rec)
-    return True
 
 
-def test_single_recommendation(llm, verbose: bool):
+def _cli_test_single_recommendation(llm, verbose: bool):
     banner("TEST 4 — Single Recommendation  (RED zone employee)")
     from modules.recommendations import RecommendationEngine
 
@@ -292,15 +288,8 @@ def test_single_recommendation(llm, verbose: bool):
     info(f"Employee: {emp['employee_id']}  |  Zone: {emp['prediction']}  |  Score: {emp['risk_score']}")
 
     try:
-        rec = engine.generate(
-            employee=engine._build_employee_context(emp),
-            prediction={
-                "risk":          emp["prediction"],
-                "probabilities": emp["probabilities"],
-                "risk_score":    emp["risk_score"],
-            },
-            similar_employees=emp["similar_employees"],
-        )
+        # generate() takes a single flat row dict — pass the prediction dict directly
+        rec = engine.generate(emp)
 
         # Validate structure
         for field in ("priority", "timeline", "reasoning", "actions"):
@@ -325,7 +314,7 @@ def test_single_recommendation(llm, verbose: bool):
         return None
 
 
-def test_batch_recommendations(llm, verbose: bool):
+def _cli_test_batch_recommendations(llm, verbose: bool):
     banner("TEST 5 — Batch Recommendations  (3 employees)")
     from modules.recommendations import RecommendationEngine
 
@@ -381,7 +370,7 @@ def test_batch_recommendations(llm, verbose: bool):
         return None
 
 
-def test_with_csv(csv_path: str, llm, verbose: bool):
+def _cli_test_with_csv(csv_path: str, llm, verbose: bool):
     banner(f"TEST 6 — Real CSV File: {csv_path}")
     try:
         import pandas as pd
@@ -450,7 +439,7 @@ def main():
         llm = None
         warn("--no-llm flag set, skipping LLM connection")
     else:
-        llm = test_llm_connection(args.provider)
+        llm = _cli_test_llm_connection(args.provider)
 
     # ── Test 2: Import ────────────────────────────────────────────────────
     if not test_engine_import():
@@ -462,16 +451,16 @@ def main():
 
     # ── Test 4: Single rec ────────────────────────────────────────────────
     if llm is not None:
-        test_single_recommendation(llm, args.verbose)
+        _cli_test_single_recommendation(llm, args.verbose)
     else:
         warn("Skipping Test 4 (single rec) — no LLM available")
 
     # ── Test 5: Batch ─────────────────────────────────────────────────────
-    test_batch_recommendations(llm, args.verbose)
+    _cli_test_batch_recommendations(llm, args.verbose)
 
     # ── Test 6: Real CSV ─────────────────────────────────────────────────
     if args.csv:
-        test_with_csv(args.csv, llm, args.verbose)
+        _cli_test_with_csv(args.csv, llm, args.verbose)
 
     # ── Summary ───────────────────────────────────────────────────────────
     banner("SUMMARY")
