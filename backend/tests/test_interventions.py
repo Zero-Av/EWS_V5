@@ -15,7 +15,8 @@ def test_list_interventions(client, admin_headers):
     """Admin can list interventions (empty list is fine on a fresh DB)."""
     resp = client.get("/interventions", headers=admin_headers)
     assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
+    assert "interventions" in resp.json()
+    assert isinstance(resp.json()["interventions"], list)
 
 
 def test_create_intervention(client, admin_headers):
@@ -32,8 +33,8 @@ def test_create_intervention(client, admin_headers):
     resp = client.post("/interventions", json=payload, headers=admin_headers)
     assert resp.status_code in (200, 201)
     data = resp.json()
-    assert "id" in data
-    return data["id"]
+    assert "intervention_id" in data
+    return data["interventions_id"]
 
 
 def test_update_intervention_status(client, admin_headers):
