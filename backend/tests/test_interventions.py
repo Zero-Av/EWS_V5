@@ -50,7 +50,7 @@ def test_update_intervention_status(client, admin_headers):
     }
     create_resp = client.post("/interventions", json=payload, headers=admin_headers)
     assert create_resp.status_code in (200, 201)
-    intervention_id = create_resp.json()["id"]
+    intervention_id = create_resp.json()["intervention_id"]
 
     # Update its status
     update_resp = client.patch(

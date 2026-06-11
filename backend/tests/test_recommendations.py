@@ -216,7 +216,7 @@ def patch_engine_for_visibility(engine, verbose: bool):
 def test_llm_connection(provider: str):
     banner(f"TEST 1 — LLM Connection  (provider: {provider})")
     try:
-        from llm import get_llm
+        from modules.llm import get_llm
         ok("Imported llm.get_llm successfully")
     except ImportError as e:
         fail(f"Import failed: {e}")
@@ -250,7 +250,7 @@ def test_llm_connection(provider: str):
 def test_engine_import():
     banner("TEST 2 — RecommendationEngine Import")
     try:
-        from recommendations import RecommendationEngine, DEFAULT_REC
+        from modules.recommendations import RecommendationEngine, DEFAULT_REC
         ok("RecommendationEngine imported successfully")
         ok(f"DEFAULT_REC keys: {list(DEFAULT_REC.keys())}")
         return True
@@ -262,7 +262,7 @@ def test_engine_import():
 
 def test_fallback_mode():
     banner("TEST 3 — Fallback Mode  (llm=None)")
-    from recommendations import RecommendationEngine, DEFAULT_REC
+    from modules.recommendations import RecommendationEngine, DEFAULT_REC
     engine = RecommendationEngine(llm=None)
     info("Calling engine.generate() with llm=None…")
 
@@ -282,7 +282,7 @@ def test_fallback_mode():
 
 def test_single_recommendation(llm, verbose: bool):
     banner("TEST 4 — Single Recommendation  (RED zone employee)")
-    from recommendations import RecommendationEngine
+    from modules.recommendations import RecommendationEngine
 
     engine = RecommendationEngine(llm=llm)
     if verbose:
@@ -327,7 +327,7 @@ def test_single_recommendation(llm, verbose: bool):
 
 def test_batch_recommendations(llm, verbose: bool):
     banner("TEST 5 — Batch Recommendations  (3 employees)")
-    from recommendations import RecommendationEngine
+    from modules.recommendations import RecommendationEngine
 
     engine = RecommendationEngine(llm=llm)
 
@@ -394,13 +394,13 @@ def test_with_csv(csv_path: str, llm, verbose: bool):
 
     # Try full prediction pipeline if model exists
     try:
-        from prediction import EmployeePredictor
+        from modules.prediction import EmployeePredictor
         predictor = EmployeePredictor()
         info("Running EmployeePredictor.predict()…")
         preds = predictor.predict(df, top_k=3)
         ok(f"Got {len(preds)} predictions")
 
-        from recommendations import RecommendationEngine
+        from modules.recommendations import RecommendationEngine
         engine = RecommendationEngine(llm=llm)
         info("Running RecommendationEngine.generate_batch()…")
         results = engine.generate_batch([dict(p) for p in preds])
