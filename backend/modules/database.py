@@ -160,6 +160,14 @@ def _hash_password(plain: str) -> str:
     return _hl.sha256(plain.encode()).hexdigest()
 
 def _verify_password(plain: str, hashed: str) -> bool:
+    # Check if the stored hash is a bcrypt hash
+    if hashed.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            import bcrypt
+            return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+        except Exception:
+            pass
+    # Fall back to SHA-256
     return _hl.sha256(plain.encode()).hexdigest() == hashed
 
 
