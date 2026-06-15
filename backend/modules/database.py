@@ -20,7 +20,7 @@ from typing import Optional
 
 # ── Connection ───────────────────────────────────────────────────────────────
 
-DB_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/ews")
+DB_URL = os.getenv("DATABASE_URL", "postgresql://ews_user:ews123@localhost:5432/ews")
 
 
 def _connect():

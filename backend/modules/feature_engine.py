@@ -113,6 +113,10 @@ def build_features_for_employee(
                 topics = json.loads(row["topics_json"]) if isinstance(row["topics_json"], str) else (row["topics_json"] or {})
             except (json.JSONDecodeError, TypeError):
                 topics = {}
+            if isinstance(topics, list):
+                topics = {t: 1.0 for t in topics if isinstance(t, str)}
+            elif not isinstance(topics, dict):
+                topics = {}
 
             sent = row.get("sentiment_score", 0.0) or 0.0
             for topic, confidence in topics.items():

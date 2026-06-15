@@ -2,10 +2,8 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
-export default function RedirectPage() {
+export default function LegacyRedirect() {
   const router = useRouter()
-  useEffect(() => {
-    router.replace("/dashboard")
-  }, [router])
+  useEffect(() => { router.replace("/analytics") }, [router])
   return null
 }

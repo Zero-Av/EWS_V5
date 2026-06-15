@@ -1,143 +1,171 @@
 "use client"
 import { useState, FormEvent } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { login as apiLogin } from "@/lib/api"
-import { ShieldCheck, Eye, EyeOff, Sparkles } from "lucide-react"
+import { login }   from "@/lib/api"
+import { useToast } from "@/lib/toast-context"
+import { Shield, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login: authLogin } = useAuth()
+  const toast = useToast()
+
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [showPw,   setShowPw]   = useState(false)
-  const [error,    setError]    = useState("")
   const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState("")
 
-  async function handleSubmit(e: FormEvent) {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError("")
+    if (!username.trim() || !password) return
     setLoading(true)
+    setError("")
     try {
-      const res = await apiLogin(username, password)
-      login(res.access_token, {
-        username:  username,
+      const res = await login(username.trim(), password)
+      authLogin(res.access_token, {
+        username:  username.trim(),
         full_name: res.full_name,
         role:      res.role,
       })
+      toast.success("Welcome back!", `Signed in as ${res.full_name}`)
     } catch (err: any) {
-      setError(err.message || "Login failed")
+      const msg = err.message || "Invalid credentials. Please try again."
+      setError(msg)
+      toast.error("Sign in failed", msg)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Soft Grid Background */}
+    <div
+      className="min-h-screen flex items-center justify-center px-4 py-12"
+      style={{ background: "var(--bg)" }}
+    >
+      {/* Subtle dot grid background */}
       <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0"
         style={{
           backgroundImage:
-            "linear-gradient(#2563eb 1px,transparent 1px),linear-gradient(90deg,#2563eb 1px,transparent 1px)",
-          backgroundSize: "48px 48px",
+            "radial-gradient(circle, #CBD5E1 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+          opacity: 0.45,
         }}
       />
-      {/* Light Radial Glows */}
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-400/5 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-indigo-400/5 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="w-full max-w-md relative z-10">
-        {/* Brand Banner */}
+      <div className="relative w-full max-w-sm animate-fade-up">
+
+        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-200/50 mb-4 transition-transform hover:rotate-3 duration-300">
-            <ShieldCheck className="w-8 h-8 text-white" />
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+            style={{ background: "linear-gradient(135deg, #2563EB, #7C3AED)" }}
+          >
+            <Shield className="w-7 h-7 text-white" />
           </div>
-          <h1 className="font-bold text-2xl text-slate-800 tracking-tight flex items-center gap-1.5 font-sans">
-            EWS Suite
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">v5.0</span>
-          </h1>
-          <p className="text-muted text-xs font-semibold uppercase tracking-wider mt-1.5">
-            Workforce Early Warning System
-          </p>
+          <h1 className="text-2xl font-extrabold text-text tracking-tight">NEXUS</h1>
+          <p className="text-sm text-muted mt-1 font-medium">Employee Intelligence Platform</p>
         </div>
 
-        {/* Card Panel */}
-        <div className="bg-white border border-slate-200/80 rounded-3xl p-8 shadow-xl shadow-slate-900/[0.03] md:p-10">
-          <div className="mb-6">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <Sparkles className="w-4.5 h-4.5 text-blue-600" />
-              Sign in to Dashboard
-            </h2>
-            <p className="text-slate-500 text-xs mt-1">Please enter your HR administration credentials.</p>
-          </div>
+        {/* Card */}
+        <div
+          className="bg-surface rounded-2xl border border-border p-8"
+          style={{ boxShadow: "var(--shadow-modal)" }}
+        >
+          <h2 className="text-lg font-bold text-text mb-1">Welcome back</h2>
+          <p className="text-sm text-muted mb-6">Sign in to your workspace</p>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {/* Username */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">
-                Username
-              </label>
+              <label htmlFor="username" className="label">Username</label>
               <input
-                className="input"
-                placeholder="e.g. admin"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
+                id="username"
+                className={`input ${error ? "input-error" : ""}`}
+                type="text"
                 autoComplete="username"
+                placeholder="your.username"
+                value={username}
+                onChange={e => { setUsername(e.target.value); setError("") }}
+                disabled={loading}
                 required
+                aria-required="true"
+                aria-describedby={error ? "login-error" : undefined}
               />
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">
-                Password
-              </label>
+              <label htmlFor="password" className="label">Password</label>
               <div className="relative">
                 <input
-                  className="input pr-11"
+                  id="password"
+                  className={`input pr-10 ${error ? "input-error" : ""}`}
                   type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  onChange={e => { setPassword(e.target.value); setError("") }}
+                  disabled={loading}
                   required
+                  aria-required="true"
+                  aria-describedby={error ? "login-error" : undefined}
                 />
                 <button
                   type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-text transition-colors"
                   onClick={() => setShowPw(v => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                  aria-label={showPw ? "Hide password" : "Show password"}
                 >
-                  {showPw ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                  {showPw
+                    ? <EyeOff className="w-4 h-4" />
+                    : <Eye    className="w-4 h-4" />
+                  }
                 </button>
               </div>
             </div>
 
+            {/* Error */}
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-4 py-3 rounded-xl">
+              <p
+                id="login-error"
+                className="text-xs font-semibold text-red bg-red-light border border-red-200 rounded-lg px-3 py-2"
+                role="alert"
+              >
                 {error}
-              </div>
+              </p>
             )}
 
+            {/* Submit */}
             <button
               type="submit"
-              disabled={loading}
-              className="btn-primary w-full mt-2 py-3.5 text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20"
+              className="btn-primary w-full py-3 mt-2 text-sm justify-center"
+              disabled={loading || !username || !password}
             >
               {loading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
-                  <span>Authenticating...</span>
-                </div>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Signing in…
+                </>
               ) : (
-                "Sign In"
+                <>
+                  Sign In
+                  <ArrowRight className="w-4 h-4" />
+                </>
               )}
             </button>
           </form>
         </div>
 
-        {/* Credentials hints */}
-        <div className="text-center mt-6">
-          <p className="text-slate-400 text-xs font-medium">
-            Demo Access: <code className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-600">admin</code> / <code className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-600">admin123</code>
-          </p>
-        </div>
+        {/* Footer trust badges */}
+        <p className="text-center text-[11px] text-subtle mt-6 flex items-center justify-center gap-3">
+          <span>AES-256 Encrypted</span>
+          <span aria-hidden="true">·</span>
+          <span>JWT Session</span>
+          <span aria-hidden="true">·</span>
+          <span>Role-Based Access</span>
+        </p>
       </div>
     </div>
   )

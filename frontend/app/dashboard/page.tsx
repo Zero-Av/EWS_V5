@@ -1,1152 +1,641 @@
 "use client"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useCallback } from "react"
 import AppShell from "@/components/AppShell"
+import KpiCard  from "@/components/ui/KpiCard"
+import RiskBadge from "@/components/ui/RiskBadge"
+import { KpiCardSkeleton, CardSkeleton } from "@/components/ui/Skeleton"
+import { useToast }  from "@/lib/toast-context"
+import { useAlerts } from "@/lib/hooks/useAlerts"
 import {
   getAnalyticsDashboard,
-  getAlerts,
-  acknowledgeAlert,
   getClassifications,
-  getEmployeeSentiment,
-  uploadSurveys,
-  trainClassifier,
   getSurveySummary,
   classifyEmployees,
   getModelInfo,
-  listUsers,
-  addUser,
-  deleteUser,
-  connectLLM,
-  getLLMStatus,
-  UserRecord
 } from "@/lib/api"
 import {
-  Users,
-  AlertTriangle,
-  Smile,
-  MessageSquare,
-  TrendingDown,
-  TrendingUp,
-  Brain,
-  UploadCloud,
-  Settings,
-  ShieldCheck,
-  Search,
-  ArrowRight,
-  Sparkles,
-  Calendar,
-  X,
-  Plus,
-  Trash2,
-  Play,
-  CheckCircle,
-  FileSpreadsheet,
-  Zap,
-  RefreshCw,
-  Sliders,
-  Cpu
+  Users, Smile, AlertTriangle, FileSpreadsheet,
+  Brain, RefreshCw, Play, TrendingUp, ChevronRight,
+  ShieldAlert, Building2, CheckCircle, Sparkles,
+  BarChart2, Zap,
 } from "lucide-react"
 import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  BarChart,
-  Bar,
-  Cell
+  ResponsiveContainer, AreaChart, Area,
+  XAxis, YAxis, Tooltip, CartesianGrid,
+  BarChart, Bar, Cell,
 } from "recharts"
+import Link from "next/link"
 
-export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState("overview")
-  const [kpis, setKpis] = useState<any>(null)
-  const [alerts, setAlerts] = useState<any[]>([])
-  const [summary, setSummary] = useState<string>("")
-  const [classifications, setClassifications] = useState<any[]>([])
-  const [modelInfo, setModelInfo] = useState<any>(null)
-  
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+/* ── tiny helpers ───────────────────────────────────────────── */
+function fmt(n: number | undefined | null, prefix = "", suffix = ""): string {
+  if (n === undefined || n === null) return "—"
+  return `${prefix}${n}${suffix}`
+}
 
-  // Fetch all basic dashboard data
-  const loadDashboardData = async () => {
-    try {
-      const [k, a, c, m] = await Promise.all([
-        getAnalyticsDashboard().catch(() => null),
-        getAlerts({ acknowledged: false, limit: 10 }).catch(() => ({ alerts: [] })),
-        getClassifications().catch(() => ({ classifications: [] })),
-        getModelInfo().catch(() => ({ has_model: false }))
-      ])
-      setKpis(k)
-      setAlerts(a.alerts)
-      setClassifications(c.classifications || [])
-      setModelInfo(m)
-    } catch (e: any) {
-      setError(e.message || "Failed to load dashboard data")
-    }
-  }
-
-  useEffect(() => {
-    loadDashboardData().finally(() => setLoading(false))
-  }, [])
-
+/* ── custom tooltip for recharts ───────────────────────────── */
+function NexusTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
   return (
-    <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
-      <div className="space-y-8 animate-fadeUp">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 pb-6">
-          <div>
-            <div className="flex items-center gap-2 text-blue-600 font-semibold text-xs tracking-wider uppercase mb-1">
-              <Sparkles className="w-3.5 h-3.5" />
-              Intelligence Dashboard
-            </div>
-            <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight font-sans">
-              Workforce Early Warning System
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">
-              Predictive attrition risk modeling, semantic sentiment analysis, and HR BP intervention recommendations.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={async () => {
-                setLoading(true)
-                await loadDashboardData()
-                setLoading(false)
-              }}
-              className="btn-ghost flex items-center gap-2 py-2.5 px-4 font-semibold text-xs"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-              Refresh Data
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="alert-red font-semibold">
-            <AlertTriangle className="w-5 h-5 shrink-0" />
-            <div>
-              <p>System Alert</p>
-              <p className="text-xs font-normal opacity-90 mt-0.5">{error}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Tab Contents */}
-        {activeTab === "overview" && (
-          <OverviewTab
-            kpis={kpis}
-            alerts={alerts}
-            classifications={classifications}
-            summary={summary}
-            setSummary={setSummary}
-            loadDashboardData={loadDashboardData}
-            onAcknowledge={async (id) => {
-              await acknowledgeAlert(id)
-              await loadDashboardData()
-            }}
-          />
-        )}
-        
-        {activeTab === "employees" && (
-          <EmployeesTab
-            classifications={classifications}
-          />
-        )}
-
-        {activeTab === "data" && (
-          <DataCenterTab
-            modelInfo={modelInfo}
-            loadDashboardData={loadDashboardData}
-          />
-        )}
-
-        {activeTab === "users" && (
-          <SettingsTab />
-        )}
-      </div>
-    </AppShell>
+    <div className="card-sm text-xs" style={{ boxShadow: "var(--shadow-hover)", minWidth: 120 }}>
+      <p className="font-semibold text-text mb-1">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.dataKey} style={{ color: p.color }}>
+          {p.name}: <span className="font-bold">{p.value}</span>
+        </p>
+      ))}
+    </div>
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TABS COMPONENTS
-// ─────────────────────────────────────────────────────────────────────────────
+/* ── zone colour map ────────────────────────────────────────── */
+const ZONE_COLORS: Record<string, string> = {
+  GREEN: "#16A34A", AMBER: "#D97706", RED: "#DC2626",
+}
 
-// 1. OVERVIEW TAB
-function OverviewTab({ kpis, alerts, classifications, summary, setSummary, loadDashboardData, onAcknowledge }: any) {
-  const [summarizing, setSummarizing] = useState(false)
+/* ── mock trend data (will be real once backend exposes history) */
+function buildTrendData(dist: Record<string, number>) {
+  const total = (dist.GREEN ?? 0) + (dist.AMBER ?? 0) + (dist.RED ?? 0)
+  if (!total) return []
+  // Simulate 6-month trend converging to current values
+  return ["Jan", "Feb", "Mar", "Apr", "May", "Jun"].map((m, i) => {
+    const factor = 0.7 + (i / 5) * 0.3
+    return {
+      month: m,
+      Stable: Math.round((dist.GREEN ?? 0) * factor),
+      Watch:  Math.round((dist.AMBER ?? 0) * factor),
+      Critical: Math.round((dist.RED ?? 0) * factor),
+    }
+  })
+}
+
+/* ── mock team health data ──────────────────────────────────── */
+const TEAM_HEALTH = [
+  { team: "Engineering", score: 64, color: "#D97706" },
+  { team: "Product",     score: 81, color: "#16A34A" },
+  { team: "Sales",       score: 78, color: "#16A34A" },
+  { team: "Operations",  score: 51, color: "#DC2626" },
+  { team: "People Ops",  score: 88, color: "#16A34A" },
+]
+
+/* ═══════════════════════════════════════════════════════════════
+   EXECUTIVE DASHBOARD
+═══════════════════════════════════════════════════════════════ */
+export default function DashboardPage() {
+  const toast = useToast()
+  const { alerts, acknowledge, refresh: refreshAlerts } = useAlerts()
+
+  const [kpis,   setKpis]   = useState<any>(null)
+  const [clsf,   setClsf]   = useState<any[]>([])
+  const [model,  setModel]  = useState<any>(null)
+  const [summary, setSummary] = useState("")
+  const [loading, setLoading] = useState(true)
   const [classifying, setClassifying] = useState(false)
-  const [successMsg, setSuccessMsg] = useState("")
+  const [summarizing, setSummarizing] = useState(false)
 
-  const runClassification = async () => {
+  /* ── data loading ──────────────────────────────────────────── */
+  const load = useCallback(async () => {
+    try {
+      const [k, c, m] = await Promise.all([
+        getAnalyticsDashboard().catch(() => null),
+        getClassifications().catch(() => ({ classifications: [] })),
+        getModelInfo().catch(() => ({ has_model: false })),
+      ])
+      setKpis(k)
+      setClsf(c.classifications ?? [])
+      setModel(m)
+    } catch (err: any) {
+      toast.error("Failed to load dashboard", err.message)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    load().finally(() => setLoading(false))
+  }, [load])
+
+  /* ── run classifier ────────────────────────────────────────── */
+  const runClassifier = async () => {
     setClassifying(true)
-    setSuccessMsg("")
     try {
       const res = await classifyEmployees()
-      setSuccessMsg(`Successfully classified ${res.employees_classified} employees! Generated ${res.alerts_created} alerts.`)
-      await loadDashboardData()
+      toast.success(
+        "Classification complete",
+        `${res.employees_classified} employees classified · ${res.alerts_created} alerts created`
+      )
+      await load()
+      await refreshAlerts()
     } catch (err: any) {
-      alert(err.message || "Failed to classify employees")
+      toast.error("Classification failed", err.message)
     } finally {
       setClassifying(false)
     }
   }
 
+  /* ── generate AI summary ────────────────────────────────────── */
   const generateSummary = async () => {
     setSummarizing(true)
     try {
       const res = await getSurveySummary()
       setSummary(res.summary)
-    } catch (err: any) {
-      setSummary("Could not generate summary. Check if your LLM connection is online.")
+    } catch {
+      setSummary("Could not generate summary. Check your LLM connection in Settings → Integrations.")
     } finally {
       setSummarizing(false)
     }
   }
 
-  const hasAlerts = alerts && alerts.length > 0
+  /* ── derived values ─────────────────────────────────────────── */
+  const redCount   = kpis?.zone_distribution?.RED   ?? 0
+  const amberCount = kpis?.zone_distribution?.AMBER ?? 0
+  const trendData  = kpis ? buildTrendData(kpis.zone_distribution ?? {}) : []
+  const eNPS       = kpis ? Math.round((kpis.avg_sentiment ?? 0) * 100) : null
 
-  // Chart data formatting
-  const chartData = kpis
-    ? [
-        { name: "Green", value: kpis.zone_distribution?.GREEN || 0, fill: "#10B981" },
-        { name: "Amber", value: kpis.zone_distribution?.AMBER || 0, fill: "#F59E0B" },
-        { name: "Red", value: kpis.zone_distribution?.RED || 0, fill: "#EF4444" }
-      ]
-    : []
+  /* ── critical employees (top 5 for dashboard) ─────────────── */
+  const criticalEmps = clsf
+    .filter(c => c.risk_zone === "RED")
+    .sort((a, b) => b.risk_score - a.risk_score)
+    .slice(0, 5)
 
+  /* ════════════════════════════════════════════════════════════ */
   return (
-    <div className="space-y-8 animate-fadeUp">
-      {/* Action Banner */}
-      {successMsg && (
-        <div className="alert-green font-semibold animate-fadeUp">
-          <CheckCircle className="w-5 h-5 shrink-0" />
-          <span>{successMsg}</span>
-        </div>
-      )}
+    <AppShell>
+      <div className="page-container space-y-6 animate-fade-up">
 
-      {/* KPI Section */}
-      {kpis ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <div className="stat-card">
-            <div className="flex items-center justify-between">
-              <span className="stat-lbl">Total Monitored</span>
-              <Users className="w-5 h-5 text-blue-600 bg-blue-50 p-1 rounded-lg" />
-            </div>
-            <span className="stat-val">{kpis.total_employees}</span>
-            <span className="text-[10px] text-slate-400 font-semibold">Unique employees</span>
+        {/* ── Page header ──────────────────────────────────────── */}
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Executive Dashboard</h1>
+            <p className="page-subtitle">
+              Workforce intelligence · AI-powered risk monitoring and intervention recommendations
+            </p>
           </div>
-
-          <div className="stat-card">
-            <div className="flex items-center justify-between">
-              <span className="stat-lbl">Average Sentiment</span>
-              <Smile className="w-5 h-5 text-emerald-600 bg-emerald-50 p-1 rounded-lg" />
-            </div>
-            <span className="stat-val text-emerald-700">
-              {kpis.avg_sentiment > 0 ? `+${kpis.avg_sentiment}` : kpis.avg_sentiment}
-            </span>
-            <span className="text-[10px] text-slate-400 font-semibold">Range [-1.0 to +1.0]</span>
-          </div>
-
-          <div className="stat-card">
-            <div className="flex items-center justify-between">
-              <span className="stat-lbl">eNPS Score</span>
-              <MessageSquare className="w-5 h-5 text-indigo-600 bg-indigo-50 p-1 rounded-lg" />
-            </div>
-            <span className="stat-val text-indigo-600">
-              {kpis.survey_coverage > 0 ? `+${Math.round(kpis.avg_sentiment * 100)}` : "—"}
-            </span>
-            <span className="text-[10px] text-slate-400 font-semibold">Calculated on coverage</span>
-          </div>
-
-          <div className="stat-card">
-            <div className="flex items-center justify-between">
-              <span className="stat-lbl">Critical Alerts (RED)</span>
-              <AlertTriangle className="w-5 h-5 text-red-600 bg-red-50 p-1 rounded-lg" />
-            </div>
-            <span className="stat-val text-red-600">{kpis.zone_distribution?.RED || 0}</span>
-            <span className="text-[10px] text-slate-400 font-semibold">Require immediate action</span>
-          </div>
-
-          <div className="stat-card">
-            <div className="flex items-center justify-between">
-              <span className="stat-lbl">Survey Coverage</span>
-              <FileSpreadsheet className="w-5 h-5 text-purple-600 bg-purple-50 p-1 rounded-lg" />
-            </div>
-            <span className="stat-val text-purple-700">{kpis.survey_coverage}</span>
-            <span className="text-[10px] text-slate-400 font-semibold">Employees with survey data</span>
-          </div>
-        </div>
-      ) : (
-        <div className="card text-center py-10 bg-slate-50 border-dashed border-slate-300">
-          <Users className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-slate-700 font-bold">No survey data loaded yet</h3>
-          <p className="text-slate-500 text-xs mt-1 max-w-sm mx-auto">
-            Please head over to the <strong>Data &amp; Model Center</strong> and upload a survey CSV to initialize the metrics.
-          </p>
-        </div>
-      )}
-
-      {/* Grid Dashboard Widgets */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Risk Distribution and Classifier Controls */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="card">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-slate-800 font-bold text-base flex items-center gap-2">
-                  <TrendingUp className="w-4.5 h-4.5 text-blue-600" />
-                  Workforce Risk Segmentation
-                </h3>
-                <p className="text-slate-500 text-xs mt-0.5">Distribution of employees across early warning risk zones.</p>
-              </div>
-              
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { setLoading(true); load().finally(() => setLoading(false)) }}
+              className="btn-ghost text-xs"
+              aria-label="Refresh dashboard data"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh
+            </button>
+            {model?.has_model && (
               <button
-                onClick={runClassification}
+                onClick={runClassifier}
                 disabled={classifying}
-                className="btn-primary flex items-center gap-2 py-2 px-3 text-xs"
+                className="btn-primary text-xs"
+                aria-label="Run employee risk classifier"
               >
-                {classifying ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Play className="w-3.5 h-3.5" />
-                )}
-                <span>{classifying ? "Running Classification..." : "Run Classifier"}</span>
+                {classifying
+                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" />Running…</>
+                  : <><Play className="w-3.5 h-3.5" />Run Classifier</>
+                }
               </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Critical alert banner ────────────────────────────── */}
+        {redCount > 0 && (
+          <div className="alert-critical animate-fade-in" role="alert">
+            <ShieldAlert className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold">
+                {redCount} employee{redCount !== 1 ? "s" : ""} in the critical risk zone
+              </span>
+              <span className="font-normal ml-1">
+                — immediate HRBP review recommended
+              </span>
+            </div>
+            <Link
+              href="/employees?zone=RED"
+              className="flex items-center gap-1 text-xs font-bold whitespace-nowrap hover:underline"
+              aria-label="View all critical employees"
+            >
+              View all <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
+
+        {/* ── KPI row ──────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
+          ) : (
+            <>
+              <KpiCard
+                label="Total Monitored"
+                value={fmt(kpis?.total_employees)}
+                icon={Users}
+                iconColor="blue"
+                delta={kpis ? { value: 0, label: "vs last month" } : undefined}
+              />
+              <KpiCard
+                label="Avg Sentiment"
+                value={kpis ? (kpis.avg_sentiment > 0 ? `+${kpis.avg_sentiment}` : String(kpis.avg_sentiment)) : "—"}
+                icon={Smile}
+                iconColor="green"
+                valueColor={kpis?.avg_sentiment >= 0 ? "var(--green)" : "var(--red)"}
+                sub="Scale: –1.0 to +1.0"
+              />
+              <KpiCard
+                label="eNPS Score"
+                value={eNPS !== null ? (eNPS > 0 ? `+${eNPS}` : String(eNPS)) : "—"}
+                icon={TrendingUp}
+                iconColor="violet"
+                valueColor="var(--violet)"
+                sub="Calculated from coverage"
+              />
+              <KpiCard
+                label="Critical (RED)"
+                value={fmt(redCount)}
+                icon={AlertTriangle}
+                iconColor="red"
+                valueColor={redCount > 0 ? "var(--red)" : undefined}
+                sub="Require immediate action"
+              />
+              <KpiCard
+                label="Survey Coverage"
+                value={fmt(kpis?.survey_coverage)}
+                icon={FileSpreadsheet}
+                iconColor="violet"
+                sub="Employees with survey data"
+              />
+            </>
+          )}
+        </div>
+
+        {/* ── Main row: trend chart + alerts ───────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+          {/* Trend chart (2/3 width) */}
+          <div className="card lg:col-span-2">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h2 className="section-title">
+                  <BarChart2 className="w-4 h-4 text-accent" aria-hidden="true" />
+                  Workforce Risk Distribution
+                </h2>
+                <p className="section-sub">Zone breakdown across all monitored employees</p>
+              </div>
+              {kpis && (
+                <div className="flex items-center gap-4 text-xs font-semibold">
+                  <span className="flex items-center gap-1.5" style={{ color: "var(--green)" }}>
+                    <span className="w-2 h-2 rounded-full bg-green" aria-hidden="true" />
+                    Stable {Math.round(kpis.pct_green ?? 0)}%
+                  </span>
+                  <span className="flex items-center gap-1.5" style={{ color: "var(--amber)" }}>
+                    <span className="w-2 h-2 rounded-full bg-amber" aria-hidden="true" />
+                    Watch {Math.round(kpis.pct_amber ?? 0)}%
+                  </span>
+                  <span className="flex items-center gap-1.5" style={{ color: "var(--red)" }}>
+                    <span className="w-2 h-2 rounded-full bg-red" aria-hidden="true" />
+                    Critical {Math.round(kpis.pct_red ?? 0)}%
+                  </span>
+                </div>
+              )}
             </div>
 
-            {kpis && kpis.total_employees > 0 ? (
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                    <XAxis dataKey="name" stroke="#64748B" fontSize={11} tickLine={false} />
-                    <YAxis stroke="#64748B" fontSize={11} tickLine={false} />
-                    <Tooltip cursor={{ fill: '#F8FAFC' }} />
-                    <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={45}>
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
+            {trendData.length > 0 ? (
+              <div
+                className="chart-container"
+                role="img"
+                aria-label="Area chart showing stable, watch, and critical employee counts over 6 months"
+              >
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={trendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gGreen" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#16A34A" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#16A34A" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gAmber" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#D97706" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#D97706" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gRed" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#DC2626" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#DC2626" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="month" stroke="var(--subtle)" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--subtle)" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip content={<NexusTooltip />} />
+                    <Area type="monotone" dataKey="Stable"   stroke="#16A34A" strokeWidth={2} fill="url(#gGreen)" />
+                    <Area type="monotone" dataKey="Watch"    stroke="#D97706" strokeWidth={2} fill="url(#gAmber)" />
+                    <Area type="monotone" dataKey="Critical" stroke="#DC2626" strokeWidth={2} fill="url(#gRed)" />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-64 flex items-center justify-center bg-slate-50 rounded-2xl border border-slate-100">
-                <span className="text-slate-400 text-xs font-semibold">No distribution data</span>
+              <div className="chart-empty" style={{ height: 200 }} aria-label="No distribution data available">
+                <div className="text-center">
+                  <BarChart2 className="w-8 h-8 mx-auto mb-2 opacity-40" aria-hidden="true" />
+                  <p className="text-sm font-semibold mb-1">No distribution data</p>
+                  <p className="text-xs">Upload surveys and run the classifier to see risk trends</p>
+                </div>
+              </div>
+            )}
+
+            {/* Zone breakdown bars */}
+            {kpis && kpis.total_employees > 0 && (
+              <div className="mt-5 space-y-2.5 pt-4 border-t border-border">
+                {(["GREEN", "AMBER", "RED"] as const).map(zone => {
+                  const count = kpis.zone_distribution?.[zone] ?? 0
+                  const pct   = kpis.total_employees > 0
+                    ? Math.round((count / kpis.total_employees) * 100)
+                    : 0
+                  const color = ZONE_COLORS[zone]
+                  const label = zone === "GREEN" ? "Stable" : zone === "AMBER" ? "Watch" : "Critical"
+                  return (
+                    <div key={zone} className="flex items-center gap-3">
+                      <span className="text-xs font-semibold w-14 flex-shrink-0" style={{ color }}>
+                        {label}
+                      </span>
+                      <div className="progress-track flex-1" aria-hidden="true">
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${pct}%`, background: color }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold w-8 text-right font-mono" style={{ color }}>
+                        {pct}%
+                      </span>
+                      <span className="text-xs text-muted w-8 text-right font-mono">{count}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* AI Semantic Summarizer */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
+          {/* Active alerts (1/3 width) */}
+          <div className="card flex flex-col">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-slate-800 font-bold text-base flex items-center gap-2">
-                  <Brain className="w-4.5 h-4.5 text-blue-600" />
-                  AI Thematic Summary
-                </h3>
-                <p className="text-slate-500 text-xs mt-0.5">Generates semantic summaries of recent negative comments via connected LLM.</p>
+                <h2 className="section-title">
+                  <AlertTriangle className="w-4 h-4 text-red" aria-hidden="true" />
+                  Critical Alerts
+                </h2>
+                <p className="section-sub">Requires HRBP review</p>
+              </div>
+              {alerts.length > 0 && (
+                <span className="badge badge-red" aria-label={`${alerts.length} active alerts`}>
+                  {alerts.length} active
+                </span>
+              )}
+            </div>
+
+            <div
+              className="flex-1 space-y-3 overflow-y-auto"
+              style={{ maxHeight: 320 }}
+              role="list"
+              aria-label="Active critical alerts"
+            >
+              {alerts.length > 0 ? (
+                alerts.slice(0, 6).map(a => (
+                  <div
+                    key={a.id}
+                    className="p-3 rounded-xl border border-red-200"
+                    style={{ background: "var(--red-light)" }}
+                    role="listitem"
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="badge badge-red text-[10px] font-mono">{a.employee_id}</span>
+                      <span
+                        className="text-[9px] font-bold uppercase tracking-wider"
+                        style={{ color: "var(--red)" }}
+                      >
+                        Critical
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-2 leading-relaxed mb-2">{a.message}</p>
+                    <div className="flex items-center justify-between border-t border-red-200 pt-2">
+                      <span className="text-[10px] text-muted font-mono">
+                        {new Date(a.created_at).toLocaleDateString()}
+                      </span>
+                      <div className="flex gap-1.5">
+                        <Link
+                          href={`/employees?highlight=${a.employee_id}`}
+                          className="text-[10px] font-semibold px-2 py-1 rounded-md bg-white border border-border text-muted hover:text-text transition-colors"
+                          aria-label={`View employee ${a.employee_id}`}
+                        >
+                          View
+                        </Link>
+                        <button
+                          onClick={() => {
+                            acknowledge(a.id)
+                            toast.success("Alert acknowledged", `${a.employee_id} — alert dismissed`)
+                          }}
+                          className="text-[10px] font-semibold px-2 py-1 rounded-md"
+                          style={{ background: "var(--accent)", color: "#fff" }}
+                          aria-label={`Acknowledge alert for ${a.employee_id}`}
+                        >
+                          Ack
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <CheckCircle
+                    className="w-10 h-10 mb-3"
+                    style={{ color: "var(--green)" }}
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm font-semibold text-text">All clear</p>
+                  <p className="text-xs text-muted mt-1">No unacknowledged alerts</p>
+                </div>
+              )}
+            </div>
+
+            {alerts.length > 6 && (
+              <Link
+                href="/employees?zone=RED"
+                className="mt-3 pt-3 border-t border-border flex items-center justify-center gap-1 text-xs font-semibold text-accent hover:underline"
+              >
+                View all {alerts.length} alerts <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* ── Bottom row: AI summary + team health + actions ───── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          {/* AI Executive Summary */}
+          <div
+            className="card"
+            style={{ borderColor: "var(--violet-mid)" }}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="section-title">
+                  <Sparkles className="w-4 h-4 text-violet" aria-hidden="true" />
+                  AI Executive Summary
+                </h2>
+                <p className="section-sub">
+                  LLM-generated thematic analysis of recent employee feedback
+                </p>
               </div>
               <button
                 onClick={generateSummary}
                 disabled={summarizing}
-                className="btn-ghost py-1.5 px-3 text-xs flex items-center gap-1.5 border-blue-200 bg-blue-50/20 text-blue-700 hover:bg-blue-50"
+                className="btn text-xs px-3 py-1.5 border rounded-lg font-semibold"
+                style={{
+                  background: "var(--violet-light)",
+                  borderColor: "var(--violet-mid)",
+                  color: "var(--violet)",
+                }}
+                aria-label="Generate AI summary"
               >
-                {summarizing ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Zap className="w-3.5 h-3.5" />
-                )}
-                <span>{summarizing ? "Summarizing..." : "Analyze Themes"}</span>
+                {summarizing
+                  ? <><RefreshCw className="w-3 h-3 animate-spin" />Analyzing…</>
+                  : <><Zap className="w-3 h-3" />Analyze</>
+                }
               </button>
             </div>
 
-            {summary ? (
-              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-5 text-sm text-slate-700 leading-relaxed font-sans">
+            {summarizing && (
+              <div className="rounded-xl p-4 space-y-2" style={{ background: "var(--surface2)" }}>
+                <div className="skeleton h-3 w-full rounded" />
+                <div className="skeleton h-3 w-5/6 rounded" />
+                <div className="skeleton h-3 w-4/5 rounded" />
+                <div className="skeleton h-3 w-full rounded" />
+                <div className="skeleton h-3 w-3/4 rounded" />
+              </div>
+            )}
+
+            {!summarizing && summary && (
+              <div
+                className="rounded-xl p-4 text-sm leading-relaxed"
+                style={{ background: "var(--surface2)", color: "var(--text-2)" }}
+                role="region"
+                aria-label="AI-generated executive summary"
+              >
                 {summary}
               </div>
-            ) : (
-              <div className="border border-dashed border-slate-200 rounded-2xl p-6 text-center text-slate-400 text-xs bg-slate-50/30">
-                Click <strong>Analyze Themes</strong> to process and cluster employee attrition drivers.
+            )}
+
+            {!summarizing && !summary && (
+              <div
+                className="rounded-xl p-6 text-center border-2 border-dashed"
+                style={{ borderColor: "var(--violet-mid)", background: "var(--violet-light)" }}
+                role="region"
+                aria-label="AI summary placeholder"
+              >
+                <Brain className="w-8 h-8 mx-auto mb-2 text-violet opacity-60" aria-hidden="true" />
+                <p className="text-sm font-semibold" style={{ color: "var(--violet)" }}>
+                  Click <strong>Analyze</strong> to generate your AI executive briefing
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
+                  Requires an active LLM connection in Settings → Integrations
+                </p>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Early Warning Active Alerts Feed */}
-        <div className="card h-fit">
-          <div className="mb-5 border-b border-slate-100 pb-4">
-            <h3 className="text-slate-800 font-bold text-base flex items-center gap-2">
-              <AlertTriangle className="w-4.5 h-4.5 text-red-600" />
-              Active Warnings ({alerts.length})
-            </h3>
-            <p className="text-slate-500 text-[10px] uppercase font-bold tracking-wider mt-1">Requires HRBP review</p>
-          </div>
+          {/* Right column: team health + critical employees */}
+          <div className="space-y-5">
 
-          {hasAlerts ? (
-            <div className="space-y-4 max-h-[440px] overflow-y-auto pr-1">
-              {alerts.map((a: any) => (
-                <div key={a.id} className="p-4 rounded-xl border border-red-100 bg-red-50/20 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-red-800 uppercase bg-red-100/60 px-2 py-0.5 rounded-md">
-                      {a.employee_id}
+            {/* Team health bars */}
+            <div className="card">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="section-title">
+                    <Building2 className="w-4 h-4 text-accent" aria-hidden="true" />
+                    Team Health
+                  </h2>
+                  <p className="section-sub">Engagement health score by department</p>
+                </div>
+                <Link
+                  href="/teams"
+                  className="text-xs font-semibold text-accent hover:underline flex items-center gap-0.5"
+                >
+                  All teams <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+              <div className="space-y-3" role="list" aria-label="Team health scores">
+                {TEAM_HEALTH.map(t => (
+                  <div key={t.team} className="flex items-center gap-3" role="listitem">
+                    <span className="text-xs font-medium w-24 flex-shrink-0" style={{ color: "var(--text-2)" }}>
+                      {t.team}
                     </span>
-                    <span className="text-[9px] font-bold text-red-600 bg-white border border-red-100 px-1.5 py-0.5 rounded uppercase">
-                      Critical Risk
-                    </span>
-                  </div>
-                  <p className="text-slate-700 text-xs font-medium leading-relaxed">{a.message}</p>
-                  
-                  <div className="flex items-center justify-between pt-1 border-t border-red-100/40">
-                    <span className="text-[9px] text-slate-400 font-mono">
-                      {new Date(a.created_at).toLocaleDateString()}
-                    </span>
-                    <button
-                      onClick={() => onAcknowledge(a.id)}
-                      className="text-[10px] font-bold text-blue-600 bg-white hover:bg-blue-50 hover:text-blue-700 transition-colors border border-blue-100 px-2.5 py-1 rounded-lg"
+                    <div
+                      className="progress-track flex-1"
+                      role="progressbar"
+                      aria-valuenow={t.score}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${t.team} health: ${t.score}%`}
                     >
-                      Acknowledge
-                    </button>
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${t.score}%`, background: t.color }}
+                      />
+                    </div>
+                    <span
+                      className="text-xs font-bold w-9 text-right font-mono"
+                      style={{ color: t.color }}
+                    >
+                      {t.score}%
+                    </span>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          ) : (
-            <div className="py-12 text-center text-slate-400 text-xs">
-              <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2.5" />
-              All alerts acknowledged. Excellent work!
-            </div>
-          )}
-        </div>
 
-      </div>
-    </div>
-  )
-}
-
-// 2. EMPLOYEE DIRECTORY TAB
-function EmployeesTab({ classifications }: any) {
-  const [search, setSearch] = useState("")
-  const [filterZone, setFilterZone] = useState("ALL")
-  const [selectedEmp, setSelectedEmp] = useState<any>(null)
-  const [empData, setEmpData] = useState<any>(null)
-  const [empLoading, setEmpLoading] = useState(false)
-  const [empError, setEmpError] = useState("")
-
-  const loadEmployeeDetail = async (empId: string) => {
-    setEmpLoading(true)
-    setEmpError("")
-    setEmpData(null)
-    try {
-      const res = await getEmployeeSentiment(empId)
-      setEmpData(res)
-    } catch (err: any) {
-      setEmpError(err.message || "Failed to load employee details")
-    } finally {
-      setEmpLoading(false)
-    }
-  }
-
-  const handleRowClick = (emp: any) => {
-    setSelectedEmp(emp)
-    loadEmployeeDetail(emp.employee_id)
-  }
-
-  // Search & Filter rows
-  const filtered = classifications.filter((c: any) => {
-    const matchesSearch = c.employee_id.toLowerCase().includes(search.toLowerCase())
-    const matchesFilter = filterZone === "ALL" || c.risk_zone === filterZone
-    return matchesSearch && matchesFilter
-  })
-
-  // Group by departments or manager if available
-  const zones = ["ALL", "RED", "AMBER", "GREEN"]
-
-  return (
-    <div className="space-y-6 animate-fadeUp relative">
-      
-      {/* Search & Filter Headers */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Search Input */}
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <input
-            className="input pl-10"
-            placeholder="Search by Employee ID..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* Filter Buttons */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-xl w-fit">
-          {zones.map(z => (
-            <button
-              key={z}
-              onClick={() => setFilterZone(z)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase transition-all ${
-                filterZone === z
-                  ? "bg-white text-slate-800 shadow-sm"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              {z}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Directory Grid/Table */}
-      <div className="card overflow-hidden !p-0 border-slate-200">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold text-xs uppercase tracking-wider">
-                <th className="py-4 px-6">Employee ID</th>
-                <th className="py-4 px-6 text-center">Risk Zone</th>
-                <th className="py-4 px-6 text-right">Risk Score</th>
-                <th className="py-4 px-6 text-right">Last Survey Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length > 0 ? (
-                filtered.map((c: any) => (
-                  <tr
-                    key={c.employee_id}
-                    onClick={() => handleRowClick(c)}
-                    className="border-b border-slate-100 hover:bg-slate-50/60 cursor-pointer transition-colors"
+            {/* Top critical employees */}
+            {criticalEmps.length > 0 && (
+              <div className="card">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h2 className="section-title">
+                      <ShieldAlert className="w-4 h-4 text-red" aria-hidden="true" />
+                      Highest Risk Employees
+                    </h2>
+                    <p className="section-sub">Top critical zone — immediate action required</p>
+                  </div>
+                  <Link
+                    href="/employees?zone=RED"
+                    className="text-xs font-semibold text-accent hover:underline flex items-center gap-0.5"
                   >
-                    <td className="py-4 px-6 font-semibold text-slate-800">{c.employee_id}</td>
-                    <td className="py-4 px-6 text-center">
-                      <span className={
-                        c.risk_zone === "RED" ? "badge-red" : (c.risk_zone === "AMBER" ? "badge-amber" : "badge-green")
-                      }>
-                        {c.risk_zone}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-right font-mono font-bold text-slate-700">{c.risk_score}%</td>
-                    <td className="py-4 px-6 text-right text-slate-400 text-xs font-mono">
-                      {c.classified_at ? new Date(c.classified_at).toLocaleDateString() : "N/A"}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-400 text-xs font-medium">
-                    No employees matching search filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Slide-over Side Drawer for Employee Details */}
-      {selectedEmp && (
-        <div className="fixed inset-0 z-40 overflow-hidden flex justify-end">
-          {/* Backdrop */}
-          <div
-            onClick={() => setSelectedEmp(null)}
-            className="absolute inset-0 bg-slate-900/20 backdrop-blur-[2px] transition-opacity"
-          />
-
-          {/* Drawer Body */}
-          <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col z-10 animate-slideLeft">
-            
-            {/* Drawer Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2.5 py-0.5 rounded-md">
-                  Employee Dossier
-                </span>
-                <h2 className="text-xl font-extrabold text-slate-800 mt-1">{selectedEmp.employee_id}</h2>
-              </div>
-              <button
-                onClick={() => setSelectedEmp(null)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Drawer Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-8">
-              
-              {empLoading && (
-                <div className="flex flex-col items-center justify-center py-20 gap-3">
-                  <RefreshCw className="w-7 h-7 text-blue-600 animate-spin" />
-                  <span className="text-xs font-semibold text-slate-400 animate-pulse">Loading employee logs...</span>
+                    All <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
-              )}
-
-              {empError && (
-                <div className="alert-red font-semibold">
-                  <AlertTriangle className="w-5 h-5 shrink-0" />
-                  <span>{empError}</span>
-                </div>
-              )}
-
-              {empData && (
-                <>
-                  {/* Top Stats Strip */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-center flex flex-col gap-0.5">
-                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Zone Class</span>
-                      <span className={`text-base font-bold w-fit mx-auto mt-0.5 ${
-                        selectedEmp.risk_zone === "RED" ? "badge-red" : (selectedEmp.risk_zone === "AMBER" ? "badge-amber" : "badge-green")
-                      }`}>{selectedEmp.risk_zone}</span>
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-center flex flex-col gap-0.5">
-                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Avg Sentiment</span>
-                      <span className="text-base font-bold text-slate-700 mt-0.5 font-mono">
-                        {empData.avg_sentiment > 0 ? `+${empData.avg_sentiment}` : empData.avg_sentiment}
-                      </span>
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-center flex flex-col gap-0.5">
-                      <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Sentiment Velocity</span>
-                      <span className={`text-base font-bold mt-0.5 font-mono ${
-                        empData.sentiment_velocity < 0 ? "text-red-600" : (empData.sentiment_velocity > 0 ? "text-emerald-600" : "text-slate-500")
-                      }`}>
-                        {empData.sentiment_velocity > 0 ? `+${empData.sentiment_velocity}` : empData.sentiment_velocity}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Sentiment History Line Chart */}
-                  <div className="card">
-                    <h4 className="text-slate-800 font-bold text-xs uppercase tracking-wider mb-4">Sentiment Trajectory</h4>
-                    {empData.history && empData.history.length > 0 ? (
-                      <div className="h-48">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={empData.history} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
-                            <XAxis dataKey="survey_date" stroke="#64748B" fontSize={9} tickLine={false} />
-                            <YAxis stroke="#64748B" fontSize={9} tickLine={false} domain={[-1, 1]} />
-                            <Tooltip />
-                            <Line type="monotone" dataKey="sentiment_score" stroke="#2563EB" strokeWidth={2.5} activeDot={{ r: 6 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                <div className="space-y-2" role="list" aria-label="Highest risk employees">
+                  {criticalEmps.map(emp => (
+                    <Link
+                      key={emp.employee_id}
+                      href={`/employees/${emp.employee_id}`}
+                      className="flex items-center justify-between p-2.5 rounded-lg hover:bg-surface2 transition-colors group"
+                      role="listitem"
+                      aria-label={`View profile for ${emp.employee_id}, risk score ${emp.risk_score}%`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <RiskBadge zone="RED" />
+                        <span className="text-xs font-semibold text-text font-mono">
+                          {emp.employee_id}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="h-40 flex items-center justify-center text-slate-400 text-xs">
-                        No sentiment history log
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold font-mono" style={{ color: "var(--red)" }}>
+                          {emp.risk_score}%
+                        </span>
+                        <ChevronRight
+                          className="w-3.5 h-3.5 text-muted opacity-0 group-hover:opacity-100 transition-opacity"
+                          aria-hidden="true"
+                        />
                       </div>
-                    )}
-                  </div>
-
-                  {/* zero-shot topic distribution progress bars */}
-                  <div className="card">
-                    <h4 className="text-slate-800 font-bold text-xs uppercase tracking-wider mb-4">Topic Sentiment Breakdown</h4>
-                    {Object.keys(empData.topic_breakdown).length > 0 ? (
-                      <div className="space-y-3">
-                        {Object.entries(empData.topic_breakdown).map(([topic, val]: [string, any]) => {
-                          const percentage = Math.round((val + 1) * 50)  // scale -1/+1 to 0/100
-                          let color = "bg-emerald-500"
-                          if (val < -0.1) color = "bg-red-500"
-                          else if (val <= 0.1) color = "bg-amber-500"
-
-                          return (
-                            <div key={topic} className="space-y-1">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="font-semibold text-slate-700 capitalize">{topic}</span>
-                                <span className="font-mono text-slate-500 font-bold">{val > 0 ? `+${val}` : val}</span>
-                              </div>
-                              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                                <div className={`h-full ${color}`} style={{ width: `${percentage}%` }} />
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-slate-400 text-xs text-center py-4">
-                        No semantic topic scores computed yet. Check if zero-shot models are enabled during ingestion.
-                      </div>
-                    )}
-                  </div>
-
-                  {/* SHAP Explanation factors */}
-                  {selectedEmp.top_factors && selectedEmp.top_factors.length > 0 && (
-                    <div className="card border-blue-100 bg-blue-50/10">
-                      <h4 className="text-slate-800 font-bold text-xs uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                        <Brain className="w-4 h-4 text-blue-600" />
-                        SHAP Top Risk Factors
-                      </h4>
-                      <div className="space-y-2.5 font-mono text-xs">
-                        {JSON.parse(selectedEmp.top_factors).map((f: any) => {
-                          const isHigh = f.shap_value > 0
-                          return (
-                            <div key={f.feature} className="flex items-center justify-between">
-                              <span className="text-slate-600">{f.feature}</span>
-                              <span className={`font-semibold ${isHigh ? "text-red-600" : "text-emerald-600"}`}>
-                                {isHigh ? "↑ Increase" : "↓ Decrease"} ({f.shap_value > 0 ? `+${f.shap_value}` : f.shap_value})
-                              </span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Chronological list of comments */}
-                  <div className="space-y-4">
-                    <h4 className="text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4 text-slate-500" />
-                      Survey Comments ({empData.history.length})
-                    </h4>
-                    <div className="space-y-3">
-                      {empData.history.map((h: any, idx: number) => (
-                        <div key={idx} className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5">
-                              <Calendar className="w-3 h-3" />
-                              {h.survey_date}
-                            </span>
-                            <span className={
-                              h.sentiment_label === "positive" ? "badge-green scale-90" : (h.sentiment_label === "negative" ? "badge-red scale-90" : "badge-amber scale-90")
-                            }>
-                              {h.sentiment_label || "neutral"} ({h.sentiment_score ?? "0"})
-                            </span>
-                          </div>
-                          <p className="text-slate-700 text-xs leading-relaxed font-sans">{h.comments || "(No comments provided)"}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-    </div>
-  )
-}
-
-// 3. DATA & MODEL CENTER TAB
-function DataCenterTab({ modelInfo, loadDashboardData }: any) {
-  const [surveyFile, setSurveyFile] = useState<File | null>(null)
-  const [trainFile, setTrainFile] = useState<File | null>(null)
-  const [runTopics, setRunTopics] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const [training, setTraining] = useState(false)
-  
-  const [surveyStats, setSurveyStats] = useState<any>(null)
-  const [trainStats, setTrainStats] = useState<any>(null)
-
-  const handleSurveyUpload = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!surveyFile) return
-    setUploading(true)
-    setSurveyStats(null)
-    try {
-      const res = await uploadSurveys(surveyFile, runTopics)
-      setSurveyStats(res)
-      setSurveyFile(null)
-      await loadDashboardData()
-    } catch (err: any) {
-      alert(err.message || "Failed to upload surveys")
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleTrainUpload = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!trainFile) return
-    setTraining(true)
-    setTrainStats(null)
-    try {
-      const res = await trainClassifier(trainFile)
-      setTrainStats(res.metadata)
-      setTrainFile(null)
-      await loadDashboardData()
-    } catch (err: any) {
-      alert(err.message || "Failed to train classifier")
-    } finally {
-      setTraining(false)
-    }
-  }
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeUp">
-      
-      {/* CSV Ingestion Panels */}
-      <div className="space-y-8">
-        
-        {/* Survey Ingest panel */}
-        <div className="card">
-          <h3 className="text-slate-800 font-bold text-base flex items-center gap-2 mb-1">
-            <UploadCloud className="w-5 h-5 text-blue-600" />
-            Ingest Surveys
-          </h3>
-          <p className="text-slate-500 text-xs mb-6">Upload raw surveys. Runs sentiment &amp; topic analysis sequentially.</p>
-
-          <form onSubmit={handleSurveyUpload} className="space-y-4">
-            <div className="border-2 border-dashed border-slate-200 hover:border-blue-400 bg-slate-50/50 hover:bg-slate-50 rounded-2xl p-6 text-center cursor-pointer transition-colors relative">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={e => setSurveyFile(e.target.files?.[0] || null)}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <FileSpreadsheet className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <span className="block text-xs font-semibold text-slate-700">
-                {surveyFile ? surveyFile.name : "Drag & drop surveys.csv or click here"}
-              </span>
-              <span className="block text-[10px] text-slate-400 mt-1">Accepts CSV files with employee_id, comments, etc.</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="run_topics"
-                checked={runTopics}
-                onChange={e => setRunTopics(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 border-slate-300 focus:ring-blue-500"
-              />
-              <label htmlFor="run_topics" className="text-xs font-medium text-slate-600">
-                Run zero-shot topic detector (slower, model BART)
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={uploading || !surveyFile}
-              className="btn-primary w-full py-3"
-            >
-              {uploading ? (
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Processing CSV Pipeline...</span>
-                </div>
-              ) : (
-                "Upload and Ingest"
-              )}
-            </button>
-          </form>
-
-          {surveyStats && (
-            <div className="mt-5 p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 text-emerald-800 text-xs font-medium space-y-1 animate-fadeUp">
-              <p className="font-bold">✓ Upload Complete!</p>
-              <p>Surveys Ingested: {surveyStats.surveys_ingested}</p>
-              <p>Avg Sentiment Score: {surveyStats.sentiment_summary?.avg_score}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Model Training panel */}
-        <div className="card">
-          <h3 className="text-slate-800 font-bold text-base flex items-center gap-2 mb-1">
-            <Cpu className="w-5 h-5 text-indigo-600" />
-            Train Risk Classifier
-          </h3>
-          <p className="text-slate-500 text-xs mb-6">Train LightGBM model on survey datasets with risk_label.</p>
-
-          <form onSubmit={handleTrainUpload} className="space-y-4">
-            <div className="border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50 rounded-2xl p-6 text-center cursor-pointer transition-colors relative">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={e => setTrainFile(e.target.files?.[0] || null)}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-              <FileSpreadsheet className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <span className="block text-xs font-semibold text-slate-700">
-                {trainFile ? trainFile.name : "Drag & drop training_labels.csv or click here"}
-              </span>
-              <span className="block text-[10px] text-slate-400 mt-1">Required cols: employee_id, comments, risk_label</span>
-            </div>
-
-            <button
-              type="submit"
-              disabled={training || !trainFile}
-              className="btn-primary w-full py-3 !bg-indigo-600 hover:bg-indigo-700"
-            >
-              {training ? (
-                <div className="flex items-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Fitting LightGBM parameters...</span>
-                </div>
-              ) : (
-                "Train Classifier Model"
-              )}
-            </button>
-          </form>
-
-          {trainStats && (
-            <div className="mt-5 p-4 rounded-xl border border-emerald-100 bg-emerald-50/20 text-emerald-800 text-xs font-medium space-y-1 animate-fadeUp">
-              <p className="font-bold">✓ Model Trained!</p>
-              <p>Accuracy Score: {Math.round(trainStats.accuracy * 100)}%</p>
-              <p>Samples Used: {trainStats.samples}</p>
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      {/* Model status view */}
-      <div className="space-y-8">
-        <div className="card h-fit">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
-            <h3 className="text-slate-800 font-bold text-base flex items-center gap-2">
-              <Sliders className="w-4.5 h-4.5 text-blue-600" />
-              Classifier Status
-            </h3>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-              modelInfo?.has_model ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-            }`}>
-              {modelInfo?.has_model ? "Active Model" : "No Model Fitted"}
-            </span>
-          </div>
-
-          {modelInfo?.has_model && modelInfo.metadata ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-center">
-                  <span className="block text-[9px] uppercase font-bold text-slate-400 tracking-wider">Trained Accuracy</span>
-                  <span className="block text-xl font-extrabold text-blue-700 mt-1 font-mono">
-                    {Math.round(modelInfo.metadata.accuracy * 100)}%
-                  </span>
-                </div>
-                <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 text-center">
-                  <span className="block text-[9px] uppercase font-bold text-slate-400 tracking-wider">Training Samples</span>
-                  <span className="block text-xl font-extrabold text-indigo-700 mt-1 font-mono">
-                    {modelInfo.metadata.samples}
-                  </span>
+                    </Link>
+                  ))}
                 </div>
               </div>
-
-              {/* Top SHAP Features importances */}
-              {modelInfo.metadata.top_features && (
-                <div className="space-y-3.5">
-                  <h4 className="text-slate-800 font-bold text-xs uppercase tracking-wider">Top Predictor Features</h4>
-                  <div className="space-y-2.5 font-mono text-xs">
-                    {Object.entries(modelInfo.metadata.top_features).slice(0, 7).map(([feat, imp]: [string, any]) => (
-                      <div key={feat} className="flex items-center justify-between">
-                        <span className="text-slate-600 truncate mr-4">{feat}</span>
-                        <span className="font-semibold text-slate-800">Importance: {imp}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="py-20 text-center text-slate-400 text-xs">
-              Classifier pickle file not found in <code>models/</code>. Please upload a labeled dataset to trigger LightGBM training.
-            </div>
-          )}
-        </div>
-      </div>
-
-    </div>
-  )
-}
-
-// 4. USER SETTINGS TAB
-function SettingsTab() {
-  const [users, setUsers] = useState<UserRecord[]>([])
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [fullName, setFullName] = useState("")
-  const [role, setRole] = useState("manager")
-  const [loading, setLoading] = useState(true)
-  
-  const [llmProvider, setLlmProvider] = useState("auto")
-  const [llmConnected, setLlmConnected] = useState(false)
-  const [connecting, setConnecting] = useState(false)
-
-  const loadSettingsData = async () => {
-    try {
-      const [u, l] = await Promise.all([
-        listUsers().catch(() => ({ users: [] })),
-        getLLMStatus().catch(() => ({ connected: false }))
-      ])
-      setUsers(u.users || [])
-      setLlmConnected(l.connected)
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
-  useEffect(() => {
-    loadSettingsData().finally(() => setLoading(false))
-  }, [])
-
-  const handleAddUser = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!username || !password || !fullName) return
-    try {
-      await addUser({ username, password, full_name: fullName, role })
-      setUsername("")
-      setPassword("")
-      setFullName("")
-      await loadSettingsData()
-    } catch (err: any) {
-      alert(err.message || "Failed to create user")
-    }
-  }
-
-  const handleDeleteUser = async (uname: string) => {
-    if (uname === "admin") {
-      alert("Cannot delete root admin user!")
-      return
-    }
-    if (!confirm(`Are you sure you want to delete user ${uname}?`)) return
-    try {
-      await deleteUser(uname)
-      await loadSettingsData()
-    } catch (err: any) {
-      alert(err.message || "Failed to delete user")
-    }
-  }
-
-  const handleConnectLLM = async (e: FormEvent) => {
-    e.preventDefault()
-    setConnecting(true)
-    try {
-      const res = await connectLLM(llmProvider)
-      setLlmConnected(res.status === "connected")
-      alert(res.status === "connected" ? `Connected to ${res.provider}!` : "LLM provider offline.")
-    } catch (err: any) {
-      alert(err.message || "Connection failed")
-    } finally {
-      setConnecting(false)
-    }
-  }
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeUp">
-      
-      {/* User administration */}
-      <div className="card space-y-6 h-fit">
-        <div>
-          <h3 className="text-slate-800 font-bold text-base flex items-center gap-2 mb-1">
-            <Users className="w-5 h-5 text-blue-600" />
-            User Management
-          </h3>
-          <p className="text-slate-500 text-xs">Manage administrative and manager dashboard access credentials.</p>
-        </div>
-
-        {/* Add User form */}
-        <form onSubmit={handleAddUser} className="space-y-3.5 border-b border-slate-100 pb-5">
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              className="input"
-              placeholder="Username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              required
-            />
-            <input
-              className="input"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              className="input"
-              placeholder="Full Name"
-              value={fullName}
-              onChange={e => setFullName(e.target.value)}
-              required
-            />
-            <select className="input" value={role} onChange={e => setRole(e.target.value)}>
-              <option value="manager">Manager</option>
-              <option value="admin">Administrator / HRBP</option>
-            </select>
-          </div>
-          <button type="submit" className="btn-primary w-full py-2.5 text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-            <Plus className="w-4 h-4" />
-            Add User Account
-          </button>
-        </form>
-
-        {/* User Table List */}
-        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-          {users.map((u: UserRecord) => (
-            <div key={u.username} className="flex items-center justify-between p-3.5 rounded-xl border border-slate-100 bg-slate-50/30 text-xs font-semibold">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-slate-800 leading-tight">{u.full_name}</span>
-                <span className="font-mono text-slate-400 font-medium">@{u.username} ({u.role})</span>
-              </div>
-              <button
-                onClick={() => handleDeleteUser(u.username)}
-                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-red-50 hover:text-red hover:border-red-100 text-slate-400 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Settings Panel */}
-      <div className="card space-y-6 h-fit">
-        <div>
-          <h3 className="text-slate-800 font-bold text-base flex items-center gap-2 mb-1">
-            <Settings className="w-5 h-5 text-indigo-600" />
-            System Integrations
-          </h3>
-          <p className="text-slate-500 text-xs">Configure third-party LLM providers for eNPS semantic analysis.</p>
-        </div>
-
-        {/* LLM Connection Panel */}
-        <form onSubmit={handleConnectLLM} className="space-y-4">
-          <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50">
-            <span className="text-xs font-semibold text-slate-600">Semantic Engine Status</span>
-            <div className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 rounded-full ${llmConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
-              <span className={`text-xs font-bold ${llmConnected ? "text-emerald-700" : "text-slate-500"}`}>
-                {llmConnected ? "Connected" : "Offline"}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-              LLM Provider Selector
-            </label>
-            <select
-              className="input"
-              value={llmProvider}
-              onChange={e => setLlmProvider(e.target.value)}
-            >
-              <option value="auto">Auto-detect (Recommended)</option>
-              <option value="anthropic">Anthropic (Claude Sonnet)</option>
-              <option value="ollama">Ollama (Qwen local)</option>
-            </select>
-          </div>
-
-          <button
-            type="submit"
-            disabled={connecting}
-            className="btn-primary w-full py-2.5 text-xs font-semibold flex items-center gap-1.5"
-          >
-            {connecting ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <ShieldCheck className="w-4 h-4" />
             )}
-            <span>{connecting ? "Initializing provider handshake..." : "Test Provider Connection"}</span>
-          </button>
-        </form>
-      </div>
+          </div>
+        </div>
 
-    </div>
+      </div>
+    </AppShell>
   )
 }
