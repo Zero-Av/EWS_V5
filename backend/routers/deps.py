@@ -83,6 +83,28 @@ class UpdateInterventionRequest(BaseModel):
     due_date: Optional[str] = None
 
 
+class EmployeeProfileRequest(BaseModel):
+    """HRBP-filled point-in-time assessment for one employee.
+
+    All metric fields are on a 1-10 scale (matching the survey CSV format).
+    ``hrbp_risk_zone`` is a manual override — separate from the AI classifier.
+    """
+    happiness_score:    Optional[float] = None
+    excitement_level:   Optional[float] = None
+    stress_level:       Optional[float] = None
+    workload_level:     Optional[float] = None
+    work_life_balance:  Optional[float] = None
+    manager_support:    Optional[float] = None
+    job_satisfaction:   Optional[float] = None
+    productivity:       Optional[float] = None
+    team_collaboration: Optional[float] = None
+    career_growth:      Optional[float] = None
+    absenteeism:        Optional[float] = None
+    score:              Optional[float] = None   # eNPS-style 0-100 score
+    comments:           Optional[str]   = None
+    hrbp_risk_zone:     Optional[str]   = None   # "RED" | "AMBER" | "GREEN" | None
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # LLM STATE  — mutable singleton shared across routers
 # ─────────────────────────────────────────────────────────────────────────────

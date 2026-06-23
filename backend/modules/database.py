@@ -126,6 +126,31 @@ def init_db() -> None:
         )
     """)
 
+    # ── Employee profiles (HRBP manually-filled assessments) ──
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS employee_profiles (
+            id                 SERIAL PRIMARY KEY,
+            employee_id        TEXT NOT NULL UNIQUE,
+            happiness_score    REAL,
+            excitement_level   REAL,
+            stress_level       REAL,
+            workload_level     REAL,
+            work_life_balance  REAL,
+            manager_support    REAL,
+            job_satisfaction   REAL,
+            productivity       REAL,
+            team_collaboration REAL,
+            career_growth      REAL,
+            absenteeism        REAL,
+            score              REAL,
+            comments           TEXT,
+            hrbp_risk_zone     TEXT,
+            updated_by         TEXT,
+            updated_at         TIMESTAMP DEFAULT NOW(),
+            created_at         TIMESTAMP DEFAULT NOW()
+        )
+    """)
+
     # ── Interventions ──
     cur.execute("""
         CREATE TABLE IF NOT EXISTS interventions (
@@ -396,7 +421,8 @@ def db_get_latest_classifications() -> list[dict]:
         SELECT DISTINCT ON (c.employee_id)
             c.employee_id, c.risk_zone, c.risk_score, c.probabilities,
             c.top_factors, c.classified_at,
-            s.department, s.manager_id
+            s.department, s.manager_id,
+            p.hrbp_risk_zone
         FROM classifications c
         LEFT JOIN LATERAL (
             SELECT department, manager_id
@@ -405,6 +431,7 @@ def db_get_latest_classifications() -> list[dict]:
             ORDER BY survey_date DESC
             LIMIT 1
         ) s ON true
+        LEFT JOIN employee_profiles p ON p.employee_id = c.employee_id
         ORDER BY c.employee_id, c.classified_at DESC
     """)
     rows = cur.fetchall()
@@ -420,6 +447,76 @@ def db_get_latest_classifications() -> list[dict]:
             pass
         results.append(row_dict)
     return results
+
+
+# ── Employee profiles ────────────────────────────────────────────────────────
+
+def db_upsert_employee_profile(employee_id: str, data: dict, updated_by: str) -> None:
+    """Insert or update an HRBP-filled profile for a single employee."""
+    conn = _connect()
+    cur  = conn.cursor()
+    cur.execute("""
+        INSERT INTO employee_profiles (
+            employee_id, happiness_score, excitement_level, stress_level,
+            workload_level, work_life_balance, manager_support, job_satisfaction,
+            productivity, team_collaboration, career_growth, absenteeism,
+            score, comments, hrbp_risk_zone, updated_by, updated_at
+        ) VALUES (
+            %(employee_id)s, %(happiness_score)s, %(excitement_level)s, %(stress_level)s,
+            %(workload_level)s, %(work_life_balance)s, %(manager_support)s, %(job_satisfaction)s,
+            %(productivity)s, %(team_collaboration)s, %(career_growth)s, %(absenteeism)s,
+            %(score)s, %(comments)s, %(hrbp_risk_zone)s, %(updated_by)s, NOW()
+        )
+        ON CONFLICT (employee_id) DO UPDATE SET
+            happiness_score    = EXCLUDED.happiness_score,
+            excitement_level   = EXCLUDED.excitement_level,
+            stress_level       = EXCLUDED.stress_level,
+            workload_level     = EXCLUDED.workload_level,
+            work_life_balance  = EXCLUDED.work_life_balance,
+            manager_support    = EXCLUDED.manager_support,
+            job_satisfaction   = EXCLUDED.job_satisfaction,
+            productivity       = EXCLUDED.productivity,
+            team_collaboration = EXCLUDED.team_collaboration,
+            career_growth      = EXCLUDED.career_growth,
+            absenteeism        = EXCLUDED.absenteeism,
+            score              = EXCLUDED.score,
+            comments           = EXCLUDED.comments,
+            hrbp_risk_zone     = EXCLUDED.hrbp_risk_zone,
+            updated_by         = EXCLUDED.updated_by,
+            updated_at         = NOW()
+    """, {
+        "employee_id": employee_id,
+        "happiness_score":    data.get("happiness_score"),
+        "excitement_level":   data.get("excitement_level"),
+        "stress_level":       data.get("stress_level"),
+        "workload_level":     data.get("workload_level"),
+        "work_life_balance":  data.get("work_life_balance"),
+        "manager_support":    data.get("manager_support"),
+        "job_satisfaction":   data.get("job_satisfaction"),
+        "productivity":       data.get("productivity"),
+        "team_collaboration": data.get("team_collaboration"),
+        "career_growth":      data.get("career_growth"),
+        "absenteeism":        data.get("absenteeism"),
+        "score":              data.get("score"),
+        "comments":           data.get("comments"),
+        "hrbp_risk_zone":     data.get("hrbp_risk_zone"),
+        "updated_by":         updated_by,
+    })
+    conn.commit()
+    conn.close()
+
+
+def db_get_employee_profile(employee_id: str) -> Optional[dict]:
+    """Return the HRBP-filled profile for one employee, or None."""
+    conn = _connect()
+    cur  = conn.cursor()
+    cur.execute(
+        "SELECT * FROM employee_profiles WHERE employee_id = %s",
+        (employee_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 # ── Dashboard KPIs ───────────────────────────────────────────────────────────
