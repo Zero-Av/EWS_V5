@@ -13,13 +13,16 @@ import json as _json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 
-from modules.database import (  # patched as "routers.employees.*" in tests
+from modules.database import (
     db_create_alert,
     db_create_intervention,
     db_get_employee_manager,
     db_get_employee_surveys,
     db_get_employee_profile,
     db_upsert_employee_profile,
+    db_save_classifications,          
+    db_get_employee_latest_zone,      
+    db_cancel_open_interventions,     
     db_write_audit_log,
 )
 from modules.recommendations import generate_recommendation
@@ -190,15 +193,18 @@ async def classify_employee_manual(
     _: dict = Depends(require_any),
 ):
     """
-    Run the full RAG pipeline against a manually entered assessment.
+    Full RAG pipeline classification using existing survey history +
+    the newly entered comment and metric values.
 
     Pipeline:
-      1. Run sentiment model on the comment → real sentiment_score
-      2. Run zero-shot topic detector on the comment → real topics_json
-      3. Build a single-row DataFrame and pass through build_features_for_employee()
-         so every aggregated feature (avg_sentiment, topic_*, etc.) is computed
-         from the actual comment, not zeroed defaults
-      4. Run RAGClassifier.predict_one() → zone + score + SHAP top_factors
+      1. Load the employee's existing survey history from the DB
+      2. Run sentiment model on the new comment
+      3. Run zero-shot topic detector on the new comment
+      4. Append the new row to the history DataFrame
+      5. Pass the complete time series through build_features_for_employee()
+         so sentiment_trend, sentiment_velocity, topic_* all reflect
+         the full picture including the new update
+      6. Classify with RAGClassifier.predict_one()
     """
     import json
     import pandas as pd
@@ -211,17 +217,27 @@ async def classify_employee_manual(
             detail="No trained model found — upload survey data and train the classifier first.",
         )
 
-    # ── Step 1: Sentiment ────────────────────────────────────────────────────
+    # ── Step 1: Load existing survey history ─────────────────────────────────
+    existing_surveys = db_get_employee_surveys(employee_id)
+    history_df = pd.DataFrame(existing_surveys) if existing_surveys else pd.DataFrame()
+
+    # ── Step 2: Sentiment on the new comment ─────────────────────────────────
     comment = body.comments or ""
     if comment.strip():
         sentiment_results = analyze_batch([comment])
         sentiment_score = sentiment_results[0]["score"]
         sentiment_label = sentiment_results[0]["label"]
     else:
-        sentiment_score = 0.0
+        # No comment — inherit the last known sentiment if available,
+        # otherwise neutral. This keeps trend/velocity meaningful.
+        if not history_df.empty and "sentiment_score" in history_df.columns:
+            last = history_df["sentiment_score"].dropna()
+            sentiment_score = float(last.iloc[-1]) if len(last) else 0.0
+        else:
+            sentiment_score = 0.0
         sentiment_label = "neutral"
 
-    # ── Step 2: Topic detection ──────────────────────────────────────────────
+    # ── Step 3: Topic detection on the new comment ───────────────────────────
     topics_json = "{}"
     if comment.strip():
         try:
@@ -230,15 +246,14 @@ async def classify_employee_manual(
         except Exception as e:
             logger.warning(f"[ClassifyManual] Topic detection skipped: {e}")
 
-    # ── Step 3: Build single-row DataFrame and engineer features ─────────────
-    row = {
+    # ── Step 4: Build the new row and append to history ──────────────────────
+    new_row = {
         "employee_id":      employee_id,
         "survey_date":      str(date.today()),
         "comments":         comment,
         "sentiment_score":  sentiment_score,
         "sentiment_label":  sentiment_label,
         "topics_json":      topics_json,
-        # All form metric fields
         "score":              body.score,
         "happiness_score":    body.happiness_score,
         "excitement_level":   body.excitement_level,
@@ -253,23 +268,110 @@ async def classify_employee_manual(
         "absenteeism":        body.absenteeism,
     }
 
-    df = pd.DataFrame([row])
-    features = build_features_for_employee(df, employee_id)
+    new_row_df = pd.DataFrame([new_row])
 
-    # ── Step 4: Classify ─────────────────────────────────────────────────────
+    # Concatenate history + new row, sorted chronologically so trend/velocity
+    # are computed in the correct direction (oldest → newest)
+    combined_df = (
+        pd.concat([history_df, new_row_df], ignore_index=True)
+        .sort_values("survey_date")
+        .reset_index(drop=True)
+    )
+
+    # ── Step 5: Engineer features ─────────────────────────────────────────────
+    # Use the full history ONLY for trend/velocity features (direction of change).
+    # Then override every point-in-time metric with the form values the HRBP
+    # just entered — these represent the current state and must drive the result,
+    # not be diluted by historical averages.
+    features = build_features_for_employee(combined_df, employee_id)
+
+    # Point-in-time overrides: form values take precedence over historical means
+    METRIC_FIELDS = [
+        "happiness_score", "excitement_level", "stress_level",
+        "workload_level", "work_life_balance", "manager_support",
+        "job_satisfaction", "productivity", "team_collaboration",
+        "career_growth", "absenteeism",
+    ]
+    for field in METRIC_FIELDS:
+        val = getattr(body, field, None)
+        if val is not None:
+            features[field] = float(val)
+        elif features.get(field) is None:
+            # Field not in form and no history — use zone-neutral midpoint
+            features[field] = 5.0
+
+    if body.score is not None:
+        features["score"]       = float(body.score)
+        features["latest_enps"] = float(body.score)
+
+    # Current sentiment from the new comment is the most important signal.
+    # avg_sentiment is a weighted blend: 80% new, 20% historical trend.
+    # This reflects "how the employee feels NOW" rather than a lifetime average.
+    historical_avg = features.get("avg_sentiment", 0.0) or 0.0
+    features["avg_sentiment"] = round(0.8 * sentiment_score + 0.2 * historical_avg, 4)
+    features["min_sentiment"]  = min(
+        features.get("min_sentiment", sentiment_score), sentiment_score
+    )
+
+    # Topic features from the NEW comment fully replace historical topic averages
+    # because topic detection was run on the new comment text
+    if comment.strip():
+        try:
+            import json as _json
+            parsed_topics = _json.loads(topics_json) if topics_json != "{}" else {}
+            for topic_label in [
+                "manager_relationship", "career_growth", "workload_pressure",
+                "company_culture", "compensation_and_benefits",
+                "work_life_balance", "team_collaboration",
+            ]:
+                safe = topic_label.replace(" ", "_")
+                key  = f"topic_{safe}"
+                confidence = parsed_topics.get(topic_label, parsed_topics.get(safe, 0.0))
+                if confidence > 0.3:
+                    features[key] = round(float(sentiment_score) * float(confidence), 4)
+        except Exception as e:
+            logger.warning(f"[ClassifyManual] Topic override failed: {e}")
+
+    # ── Step 6: Classify ──────────────────────────────────────────────────────
     try:
         result = clf.predict_one(features)
     except Exception as e:
         logger.error(f"[ClassifyManual] Failed for {employee_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Classification failed: {e}")
 
-    return {
-        "employee_id":   employee_id,
-        "risk_zone":     result["risk_zone"],
-        "risk_score":    result["risk_score"],
+    new_zone     = result["risk_zone"]
+    previous_zone = db_get_employee_latest_zone(employee_id)
+
+    # ── Persist the new classification ───────────────────────────────────────
+    db_save_classifications([{
+        "employee_id": employee_id,
+        "risk_zone":   new_zone,
+        "risk_score":  result["risk_score"],
         "probabilities": result.get("probabilities", {}),
         "top_factors":   result.get("top_factors", []),
-        "source":        "manual_assessment",
-        "sentiment_score": round(sentiment_score, 4),
-        "sentiment_label": sentiment_label,
+    }])
+
+    # ── If the zone changed, cancel all open interventions ───────────────────
+    zone_changed           = previous_zone is not None and previous_zone != new_zone
+    interventions_cancelled = 0
+    if zone_changed:
+        interventions_cancelled = db_cancel_open_interventions(employee_id)
+        logger.info(
+            f"[ClassifyManual] {employee_id} zone changed {previous_zone} → {new_zone}. "
+            f"{interventions_cancelled} intervention(s) cancelled."
+        )
+
+    return {
+        "employee_id":            employee_id,
+        "risk_zone":              new_zone,
+        "risk_score":             result["risk_score"],
+        "probabilities":          result.get("probabilities", {}),
+        "top_factors":            result.get("top_factors", []),
+        "source":                 "manual_assessment",
+        "sentiment_score":        round(sentiment_score, 4),
+        "sentiment_label":        sentiment_label,
+        "history_length":         len(combined_df),
+        "previous_zone":          previous_zone,
+        "zone_changed":           zone_changed,
+        "interventions_cancelled": interventions_cancelled,
     }

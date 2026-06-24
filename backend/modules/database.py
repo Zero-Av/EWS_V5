@@ -645,6 +645,42 @@ def db_get_zone_changes() -> dict:
         "details":   details,
     }
 
+def db_get_employee_latest_zone(employee_id: str) -> str | None:
+    """Return the most recent classified risk zone for one employee, or None."""
+    conn = _connect()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT risk_zone FROM classifications
+        WHERE employee_id = %s
+        ORDER BY classified_at DESC
+        LIMIT 1
+    """, (employee_id,))
+    row = cur.fetchone()
+    conn.close()
+    return row["risk_zone"] if row else None
+
+
+def db_cancel_open_interventions(employee_id: str) -> int:
+    """
+    Mark all pending/in-progress interventions for an employee as Cancelled.
+    Called when a re-classification produces a different zone so stale
+    action plans are not acted on.
+    Returns the number of interventions cancelled.
+    """
+    conn = _connect()
+    cur  = conn.cursor()
+    cur.execute("""
+        UPDATE interventions
+        SET    status     = 'Cancelled',
+               updated_at = NOW()
+        WHERE  employee_id = %s
+          AND  status NOT IN ('Completed', 'Cancelled')
+    """, (employee_id,))
+    count = cur.rowcount
+    conn.commit()
+    conn.close()
+    return count
+
 # ── Alerts ───────────────────────────────────────────────────────────────────
 
 def db_create_alert(employee_id: str, alert_type: str, severity: str,
