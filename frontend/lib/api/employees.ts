@@ -45,12 +45,18 @@ export interface EmployeeProfile extends EmployeeProfileData {
 }
 
 export interface ManualClassifyResult {
-  employee_id:   string
-  risk_zone:     "RED" | "AMBER" | "GREEN"
-  risk_score:    number
-  probabilities: Record<string, number>
-  top_factors:   { feature: string; shap_value: number; actual_value: number }[]
-  source:        string
+  employee_id:              string
+  risk_zone:                "RED" | "AMBER" | "GREEN"
+  risk_score:               number
+  probabilities:            Record<string, number>
+  top_factors:              { feature: string; shap_value: number; actual_value: number }[]
+  source:                   string
+  sentiment_score:          number
+  sentiment_label:          string
+  history_length:           number
+  previous_zone:            "RED" | "AMBER" | "GREEN" | null  
+  zone_changed:             boolean                             
+  interventions_cancelled:  number                             
 }
 
 // ── Functions ────────────────────────────────────────────────────────────────
