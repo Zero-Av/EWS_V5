@@ -194,7 +194,7 @@ async def classify_employee_manual(
 ):
     """
     Full RAG pipeline classification using existing survey history +
-    the newly entered comment and metric values.
+    the newly entered comment and field values.
 
     Pipeline:
       1. Load the employee's existing survey history from the DB
@@ -209,6 +209,7 @@ async def classify_employee_manual(
     import json
     import pandas as pd
     from datetime import date
+    from config import TOPIC_LABELS
 
     clf = RAGClassifier()
     if not clf.load():
@@ -254,18 +255,19 @@ async def classify_employee_manual(
         "sentiment_score":  sentiment_score,
         "sentiment_label":  sentiment_label,
         "topics_json":      topics_json,
-        "score":              body.score,
-        "happiness_score":    body.happiness_score,
-        "excitement_level":   body.excitement_level,
-        "stress_level":       body.stress_level,
-        "workload_level":     body.workload_level,
-        "work_life_balance":  body.work_life_balance,
-        "manager_support":    body.manager_support,
-        "job_satisfaction":   body.job_satisfaction,
-        "productivity":       body.productivity,
-        "team_collaboration": body.team_collaboration,
-        "career_growth":      body.career_growth,
-        "absenteeism":        body.absenteeism,
+        # Numeric features from the profile form
+        "total_experience":   body.total_experience,
+        "tenure_years":       body.tenure_years,
+        "rating":             body.rating,
+        "ageing":             body.ageing,
+        # Categorical features from the profile form
+        "primary_concern":    body.primary_concern,
+        "secondary_reason":   body.secondary_reason,
+        "previous_rag":       body.previous_rag,
+        "previous_concern":   body.previous_concern,
+        "designation":        body.designation,
+        "location_region":    body.location_region,
+        "employee_status":    body.employee_status,
     }
 
     new_row_df = pd.DataFrame([new_row])
@@ -279,34 +281,26 @@ async def classify_employee_manual(
     )
 
     # ── Step 5: Engineer features ─────────────────────────────────────────────
-    # Use the full history ONLY for trend/velocity features (direction of change).
-    # Then override every point-in-time metric with the form values the HRBP
-    # just entered — these represent the current state and must drive the result,
-    # not be diluted by historical averages.
     features = build_features_for_employee(combined_df, employee_id)
 
     # Point-in-time overrides: form values take precedence over historical means
-    METRIC_FIELDS = [
-        "happiness_score", "excitement_level", "stress_level",
-        "workload_level", "work_life_balance", "manager_support",
-        "job_satisfaction", "productivity", "team_collaboration",
-        "career_growth", "absenteeism",
-    ]
-    for field in METRIC_FIELDS:
+    NUMERIC_FIELDS = ["total_experience", "tenure_years", "rating", "ageing"]
+    for field in NUMERIC_FIELDS:
         val = getattr(body, field, None)
         if val is not None:
             features[field] = float(val)
-        elif features.get(field) is None:
-            # Field not in form and no history — use zone-neutral midpoint
-            features[field] = 5.0
 
-    if body.score is not None:
-        features["score"]       = float(body.score)
-        features["latest_enps"] = float(body.score)
+    CATEGORICAL_FIELDS = [
+        "primary_concern", "secondary_reason", "previous_rag",
+        "previous_concern", "designation", "location_region", "employee_status",
+    ]
+    for field in CATEGORICAL_FIELDS:
+        val = getattr(body, field, None)
+        if val is not None:
+            features[field] = str(val)
 
     # Current sentiment from the new comment is the most important signal.
     # avg_sentiment is a weighted blend: 80% new, 20% historical trend.
-    # This reflects "how the employee feels NOW" rather than a lifetime average.
     historical_avg = features.get("avg_sentiment", 0.0) or 0.0
     features["avg_sentiment"] = round(0.8 * sentiment_score + 0.2 * historical_avg, 4)
     features["min_sentiment"]  = min(
@@ -314,16 +308,11 @@ async def classify_employee_manual(
     )
 
     # Topic features from the NEW comment fully replace historical topic averages
-    # because topic detection was run on the new comment text
     if comment.strip():
         try:
             import json as _json
             parsed_topics = _json.loads(topics_json) if topics_json != "{}" else {}
-            for topic_label in [
-                "manager_relationship", "career_growth", "workload_pressure",
-                "company_culture", "compensation_and_benefits",
-                "work_life_balance", "team_collaboration",
-            ]:
+            for topic_label in TOPIC_LABELS:
                 safe = topic_label.replace(" ", "_")
                 key  = f"topic_{safe}"
                 confidence = parsed_topics.get(topic_label, parsed_topics.get(safe, 0.0))

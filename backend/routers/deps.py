@@ -86,23 +86,22 @@ class UpdateInterventionRequest(BaseModel):
 class EmployeeProfileRequest(BaseModel):
     """HRBP-filled point-in-time assessment for one employee.
 
-    All metric fields are on a 1-10 scale (matching the survey CSV format).
+    Fields match the company's actual EWS data columns.
     ``hrbp_risk_zone`` is a manual override — separate from the AI classifier.
     """
-    happiness_score:    Optional[float] = None
-    excitement_level:   Optional[float] = None
-    stress_level:       Optional[float] = None
-    workload_level:     Optional[float] = None
-    work_life_balance:  Optional[float] = None
-    manager_support:    Optional[float] = None
-    job_satisfaction:   Optional[float] = None
-    productivity:       Optional[float] = None
-    team_collaboration: Optional[float] = None
-    career_growth:      Optional[float] = None
-    absenteeism:        Optional[float] = None
-    score:              Optional[float] = None   # eNPS-style 0-100 score
     comments:           Optional[str]   = None
     hrbp_risk_zone:     Optional[str]   = None   # "RED" | "AMBER" | "GREEN" | None
+    primary_concern:    Optional[str]   = None   # one of the 16 concern categories
+    secondary_reason:   Optional[str]   = None   # secondary concern category
+    previous_rag:       Optional[str]   = None   # "GREEN" | "AMBER" | "RED"
+    previous_concern:   Optional[str]   = None
+    designation:        Optional[str]   = None
+    location_region:    Optional[str]   = None   # NCR / Pune / Chennai / Non Iris
+    employee_status:    Optional[str]   = None
+    total_experience:   Optional[float] = None   # years
+    tenure_years:       Optional[float] = None   # years at company
+    rating:             Optional[float] = None   # Rating 2025-2026
+    ageing:             Optional[float] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -168,6 +167,12 @@ def require_manager_or_above(user: Annotated[dict, Depends(get_current_user)]) -
 # FILE UPLOAD UTILITY
 # ─────────────────────────────────────────────────────────────────────────────
 def _df_from_upload(file: UploadFile) -> pd.DataFrame:
-    """Read an uploaded CSV/Excel file into a DataFrame."""
+    """Read an uploaded CSV/Excel file into a DataFrame.
+
+    Supports .csv, .xlsx, and .xls formats.
+    """
     content = file.file.read()
+    filename = (file.filename or "").lower()
+    if filename.endswith((".xlsx", ".xls")):
+        return pd.read_excel(io.BytesIO(content))
     return pd.read_csv(io.BytesIO(content))

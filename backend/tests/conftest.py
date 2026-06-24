@@ -29,7 +29,7 @@ mock_sentiment_pipe.return_value = [
 
 mock_topic_classifier = MagicMock()
 mock_topic_classifier.return_value = {
-    "labels": ["manager relationship", "career growth", "workload pressure"],
+    "labels": ["Team", "RO", "Compensation"],
     "scores": [0.8, 0.5, 0.1],
 }
 

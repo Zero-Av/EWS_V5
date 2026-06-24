@@ -17,6 +17,7 @@ def synthetic_features():
     np.random.seed(42)
     rows = []
     classes = ["GREEN", "AMBER", "RED"]
+    concerns = ["Team", "RO", "Work Content", "Compensation", "Career Progression", "Performance"]
     for i in range(20):
         c = classes[i % 3]
         rows.append({
@@ -27,21 +28,17 @@ def synthetic_features():
             "sentiment_trend": 0.1 if c == "GREEN" else (0.0 if c == "AMBER" else -0.2),
             "sentiment_velocity": 0.05 if c == "GREEN" else (0.0 if c == "AMBER" else -0.3),
             "survey_count": 5,
-            "latest_enps": 9.0 if c == "GREEN" else (6.0 if c == "AMBER" else 3.0),
-            "avg_enps": 8.5 if c == "GREEN" else (5.5 if c == "AMBER" else 2.5),
-            "happiness_score": 8.0 if c == "GREEN" else (5.0 if c == "AMBER" else 2.0),
-            "excitement_level": 7.0 if c == "GREEN" else (5.0 if c == "AMBER" else 3.0),
-            "stress_level": 2.0 if c == "GREEN" else (5.0 if c == "AMBER" else 8.0),
-            "workload_level": 3.0 if c == "GREEN" else (5.0 if c == "AMBER" else 8.0),
-            "work_life_balance": 8.0 if c == "GREEN" else (5.0 if c == "AMBER" else 2.0),
-            "manager_support": 9.0 if c == "GREEN" else (6.0 if c == "AMBER" else 3.0),
-            "job_satisfaction": 8.0 if c == "GREEN" else (5.0 if c == "AMBER" else 2.0),
-            "productivity": 8.0 if c == "GREEN" else (6.0 if c == "AMBER" else 4.0),
-            "team_collaboration": 8.0 if c == "GREEN" else (6.0 if c == "AMBER" else 4.0),
-            "career_growth": 7.0 if c == "GREEN" else (5.0 if c == "AMBER" else 2.0),
-            "absenteeism": 1.0 if c == "GREEN" else (3.0 if c == "AMBER" else 10.0),
-            "department": "Engineering" if i % 2 == 0 else "Sales",
-            "risk_label": c
+            # Numeric features (from actual data)
+            "total_experience": 10.0 if c == "GREEN" else (5.0 if c == "AMBER" else 2.0),
+            "tenure_years": 5.0 if c == "GREEN" else (2.0 if c == "AMBER" else 0.5),
+            "rating": 4.0 if c == "GREEN" else (3.0 if c == "AMBER" else 2.0),
+            "ageing": 0 if c == "GREEN" else (1 if c == "AMBER" else 2),
+            # Categorical features (from actual data)
+            "department": "Project_Alpha" if i % 2 == 0 else "Project_Beta",
+            "primary_concern": concerns[i % len(concerns)],
+            "previous_rag": "GREEN" if c == "GREEN" else ("AMBER" if c == "AMBER" else "RED"),
+            "designation": "Senior" if c == "GREEN" else ("Mid" if c == "AMBER" else "Junior"),
+            "risk_zone": c
         })
     return pd.DataFrame(rows)
 

@@ -2,7 +2,7 @@
 routers/training.py
 
 Routes:
-  POST /train        — train the RAG classifier on labelled survey CSV (admin)
+  POST /train        — train the RAG classifier on labelled survey CSV/Excel (admin)
   GET  /model/info   — metadata about the currently trained classifier
 """
 
@@ -19,6 +19,7 @@ from modules.classifier import RAGClassifier           # patched as "routers.tra
 from modules.feature_engine import build_features_batch  # patched as "routers.training.build_features_batch"
 from modules.sentiment import analyze_batch            # patched as "routers.training.analyze_batch"
 from routers.deps import _df_from_upload, require_admin, require_any
+from config import COLUMN_RENAME_MAP, REQUIRED_TRAIN_COLS
 
 router = APIRouter(tags=["admin"])
 
@@ -31,18 +32,27 @@ async def train_classifier(
     """
     Train the RAG classifier on labelled survey data.
 
-    CSV must contain: employee_id, comments, risk_zone (GREEN/AMBER/RED)
+    Accepts CSV or Excel (.xlsx) files.
+    Required columns (after rename): employee_id, comments, risk_zone (GREEN/AMBER/RED)
     Plus any numeric/categorical features.
 
     Pipeline:
-      1. Run sentiment on all comments
-      2. Build aggregated features per employee
-      3. Train LightGBM classifier
+      1. Rename columns to internal names
+      2. Run sentiment on all comments
+      3. Build aggregated features per employee
+      4. Train LightGBM classifier
     """
     try:
         df = _df_from_upload(file)
 
-        required = {"employee_id", "comments", "risk_zone"}
+        # Apply column rename map (Excel column names → internal names)
+        df = df.rename(columns=COLUMN_RENAME_MAP)
+
+        # Normalise risk_zone values to uppercase (Green → GREEN, etc.)
+        if "risk_zone" in df.columns:
+            df["risk_zone"] = df["risk_zone"].astype(str).str.upper().str.strip()
+
+        required = REQUIRED_TRAIN_COLS
         missing  = required - set(df.columns)
         if missing:
             raise ValueError(f"Missing required columns: {missing}")

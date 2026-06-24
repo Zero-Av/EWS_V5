@@ -49,7 +49,7 @@ TIMELINE_BY_ZONE = {
 # Rule-based fallback
 # ─────────────────────────────────────────────────────────────────────────────
 def _rule_based_actions(features: dict, top_factors: list) -> list[dict]:
-    """Generate a small set of targeted actions from feature thresholds."""
+    """Generate a small set of targeted actions from feature thresholds and concern categories."""
     actions: list[dict] = []
 
     def add(title, owner, description):
@@ -58,13 +58,9 @@ def _rule_based_actions(features: dict, top_factors: list) -> list[dict]:
     sentiment_trend = features.get("sentiment_trend", 0) or 0
     sentiment_velocity = features.get("sentiment_velocity", 0) or 0
     avg_sentiment = features.get("avg_sentiment", 0) or 0
-    stress = features.get("stress_level")
-    workload = features.get("workload_level")
-    wlb = features.get("work_life_balance")
-    manager_support = features.get("manager_support")
-    career_growth = features.get("career_growth")
-    job_satisfaction = features.get("job_satisfaction")
-    enps = features.get("latest_enps")
+    primary_concern = features.get("primary_concern")
+    secondary_reason = features.get("secondary_reason")
+    previous_rag = features.get("previous_rag")
 
     if sentiment_velocity < -0.15 or sentiment_trend < -0.05:
         add(
@@ -74,60 +70,78 @@ def _rule_based_actions(features: dict, top_factors: list) -> list[dict]:
             "A timely, supportive conversation can surface concerns before they escalate.",
         )
 
-    if stress is not None and stress >= 7:
+    # ── Concern-category-driven rules ────────────────────────────────────────
+    if primary_concern in ("RO", "Team"):
         add(
-            "Conduct a workload and stress review",
-            "Manager",
-            "Reported stress levels are high. Review current assignments, "
-            "redistribute tasks if needed, and discuss support resources.",
+            "Facilitate manager/team relationship review",
+            "HR Partner",
+            f"Primary concern is '{primary_concern}'. Schedule a mediated conversation "
+            "between the employee and their reporting officer to address relationship issues.",
         )
 
-    if workload is not None and workload >= 7:
-        add(
-            "Rebalance workload across the team",
-            "Manager",
-            "Workload levels indicate the employee may be overextended. "
-            "Consider redistributing tasks or adjusting deadlines.",
-        )
-
-    if wlb is not None and wlb <= 4:
+    if primary_concern in ("Work Life Balance", "Work Content"):
         add(
             "Discuss flexible working arrangements",
             "HR Partner",
-            "Work-life balance scores are low. Explore flexible hours, "
-            "remote work options, or time-off planning.",
+            f"Primary concern is '{primary_concern}'. Explore flexible hours, "
+            "remote work options, workload redistribution, or time-off planning.",
         )
 
-    if manager_support is not None and manager_support <= 4:
+    if primary_concern == "Compensation" or secondary_reason == "Compensation":
         add(
-            "Review manager relationship and communication",
+            "Initiate a compensation review",
             "HR Partner",
-            "Manager support scores are low. Consider a facilitated "
-            "conversation or coaching support for the manager.",
+            "Compensation has been flagged as a concern. Review market benchmarks "
+            "and internal parity, and discuss potential adjustments or non-monetary benefits.",
         )
 
-    if career_growth is not None and career_growth <= 4:
+    if primary_concern in ("Career Progression", "Promotion"):
         add(
             "Create a career development plan",
             "Manager",
-            "Career growth satisfaction is low. Discuss growth paths, "
-            "stretch assignments, or mentorship opportunities.",
+            f"Primary concern is '{primary_concern}'. Discuss growth paths, "
+            "stretch assignments, promotion timelines, or mentorship opportunities.",
         )
 
-    if job_satisfaction is not None and job_satisfaction <= 4:
+    if primary_concern == "Performance":
         add(
-            "Re-evaluate role fit and responsibilities",
-            "HR Partner",
-            "Job satisfaction is low. Explore whether the current role "
-            "aligns with the employee's skills and interests.",
+            "Provide performance support and coaching",
+            "Manager",
+            "Performance is flagged as a concern. Set clear expectations, provide "
+            "constructive feedback, and establish measurable improvement goals.",
         )
 
-    if enps is not None and enps <= 6:
+    if primary_concern == "Health & Wellness":
         add(
-            "Address eNPS detractor signal",
+            "Connect with wellness resources",
             "HR Partner",
-            "The employee's eNPS score indicates they are unlikely to "
-            "recommend the company. Investigate root causes via a confidential conversation.",
+            "Health and wellness is the primary concern. Offer employee assistance "
+            "program (EAP) access, wellness activities, or medical support resources.",
+        )
+
+    if primary_concern in ("Policies", "Iris Culture"):
+        add(
+            "Address policy or culture concerns",
+            "HR Partner",
+            f"Primary concern is '{primary_concern}'. Schedule a confidential discussion "
+            "to understand specific grievances and explore resolution options.",
+        )
+
+    if primary_concern == "Offboarding":
+        add(
+            "Conduct immediate retention discussion",
+            "Manager",
+            "Employee has flagged 'Offboarding' as primary concern — potential flight risk. "
+            "Urgent retention conversation recommended within 48 hours.",
+        )
+
+    # ── RAG escalation detection ─────────────────────────────────────────────
+    if previous_rag and previous_rag.upper() == "GREEN":
+        add(
+            "Investigate recent escalation from GREEN",
+            "HR Partner",
+            "Employee was previously GREEN — something has changed recently. "
+            "Investigate what triggered the escalation via a confidential conversation.",
         )
 
     if avg_sentiment < -0.2:

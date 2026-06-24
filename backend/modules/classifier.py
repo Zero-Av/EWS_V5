@@ -41,7 +41,15 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 
 
 # ── Columns we never feed to the model ───────────────────────────────────────
-DROP_COLS = {"employee_id", "_has_data", "risk_zone"}
+DROP_COLS = {
+    "employee_id",
+    "Employee ID",
+    "Employee Name",
+    "Project Manager",
+    "RAG Status by HRBP",
+    "_has_data",
+    "risk_zone",
+}
 
 
 class RAGClassifier:

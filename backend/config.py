@@ -25,44 +25,82 @@ RISK_ZONES = ["GREEN", "AMBER", "RED"]
 SENTIMENT_MODEL = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 
 # ── Topic detection (zero-shot) ──────────────────────────────────────────────
+# These are the 16 company-specific concern categories from the EWS data.
+# The zero-shot classifier will tag comments against these labels.
 TOPIC_MODEL = "facebook/bart-large-mnli"
 TOPIC_LABELS = [
-    "manager relationship",
-    "career growth",
-    "workload pressure",
-    "company culture",
-    "compensation and benefits",
-    "work life balance",
-    "team collaboration",
+    "Team",
+    "RO",
+    "Work Content",
+    "Work Life Balance",
+    "Health & Wellness",
+    "Reward and Recognition",
+    "Promotion",
+    "Iris Culture",
+    "Performance",
+    "Compensation",
+    "Policies",
+    "Training",
+    "Offboarding",
+    "Career Progression",
+    "Relocation",
+    "Others",
 ]
 
-# ── Required CSV columns ─────────────────────────────────────────────────────
-REQUIRED_SURVEY_COLS = {"employee_id", "survey_date", "comments"}
-REQUIRED_TRAIN_COLS  = {"employee_id", "comments", "risk_label"}
+# ── Column mapping from Excel (Sample_-_EWS.xlsx) to internal names ──────────
+# Applied at ingestion time to normalise the raw Excel column headers
+# into clean snake_case for consistent use throughout the pipeline and DB.
+COLUMN_RENAME_MAP = {
+    "Employee ID":      "employee_id",
+    "Employee Name":    "employee_name",
+    "Date of joining":  "survey_date",      # proxy for survey date
+    "Project":          "department",        # used as team/department grouping
+    "Employee Status":  "employee_status",
+    "Primary RO":       "manager_id",        # used for manager-scoped views
+    "Project Manager":  "project_manager",
+    "Total Experience": "total_experience",
+    "Tenure (years)":   "tenure_years",
+    "Designation":      "designation",
+    "Skill":            "skill",
+    "Rating 2025-2026": "rating",
+    "RAG Status by HRBP": "rag_status_by_hrbp",
+    "HRBP Connect Month": "hrbp_connect_month",
+    "Previous RAG":     "previous_rag",
+    "Previous Concern": "previous_concern",
+    "Current RAG":      "risk_zone",         # training label (GREEN / AMBER / RED)
+    "Primary Concern":  "primary_concern",
+    "Secondary Reason": "secondary_reason",
+    "Ageing":           "ageing",
+    "Location region (NCR/Pune/Chennai/Non Iris)": "location_region",
+    "comments":         "comments",          # keep as-is
+}
 
-# ── Known numeric + categorical feature columns from surveys ─────────────────
-# These are the columns beyond the required ones that we expect in survey CSVs.
+# ── Required columns (after renaming) ────────────────────────────────────────
+REQUIRED_SURVEY_COLS = {"employee_id", "comments"}
+REQUIRED_TRAIN_COLS  = {"employee_id", "comments", "risk_zone"}
+
+# ── Known numeric + categorical feature columns from the EWS Excel data ─────
+# Names here are the INTERNAL (post-rename) snake_case names.
 # The system dynamically discovers columns, but these are the "known" features.
 KNOWN_NUMERIC_FEATURES = [
-    "score",               # eNPS score (0-10)
-    "happiness_score",
-    "excitement_level",
-    "stress_level",
-    "workload_level",
-    "work_life_balance",
-    "manager_support",
-    "job_satisfaction",
-    "productivity",
-    "team_collaboration",
-    "career_growth",
-    "absenteeism",
+    "total_experience",       # float — years of total experience
+    "tenure_years",           # float — tenure at company
+    "rating",                 # numeric rating (if available)
+    "ageing",                 # numeric ageing value
 ]
 
 KNOWN_CATEGORICAL_FEATURES = [
-    "department",
-    "manager_id",
-    "employment_type",
-    "tenure_bucket",
+    "department",             # mapped from "Project"
+    "manager_id",             # mapped from "Primary RO"
+    "employee_status",
+    "designation",
+    "skill",
+    "location_region",
+    "previous_rag",
+    "previous_concern",
+    "primary_concern",
+    "secondary_reason",
+    "hrbp_connect_month",
 ]
 
 # ── Training hyperparameters ─────────────────────────────────────────────────

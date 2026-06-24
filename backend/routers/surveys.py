@@ -2,15 +2,18 @@
 routers/surveys.py
 
 Routes:
-  POST /surveys/upload     — ingest CSV: sentiment + topic analysis, store in DB
+  POST /surveys/upload     — ingest CSV/Excel: sentiment + topic analysis, store in DB
   POST /surveys/summarize  — LLM thematic summary of recent negative comments
 """
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from loguru import logger
 
+from config import COLUMN_RENAME_MAP, REQUIRED_SURVEY_COLS
 from modules.database import db_get_all_surveys, db_insert_surveys  # patched as "routers.surveys.*" in tests
 from modules.llm import summarize_feedback                           # patched as "routers.surveys.summarize_feedback"
 from modules.sentiment import analyze_batch                          # patched as "routers.surveys.analyze_batch"
@@ -26,20 +29,27 @@ async def upload_surveys(
     _: dict = Depends(require_any),
 ):
     """
-    Upload a survey CSV.  For each row:
+    Upload a survey CSV or Excel file.  For each row:
       1. Run pretrained sentiment model → score (-1 to +1)
       2. Optionally run topic detection → topic relevance scores
       3. Store everything in the database
 
-    Required columns: employee_id, survey_date, comments
-    Optional columns: score, happiness_score, stress_level, department, etc.
+    Required columns (after rename): employee_id, comments
+    Optional columns: total_experience, tenure_years, designation, etc.
     """
     import pandas as pd
 
     try:
         df = _df_from_upload(file)
 
-        required = {"employee_id", "survey_date", "comments"}
+        # Apply column rename map (Excel column names → internal snake_case)
+        df = df.rename(columns=COLUMN_RENAME_MAP)
+
+        # Generate survey_date if not present
+        if "survey_date" not in df.columns:
+            df["survey_date"] = datetime.now().strftime("%Y-%m-%d")
+
+        required = REQUIRED_SURVEY_COLS
         missing  = required - set(df.columns)
         if missing:
             raise ValueError(f"Missing required columns: {missing}")

@@ -45,19 +45,17 @@ def test_build_features_for_employee():
             "employee_id": "EMP001",
             "survey_date": "2026-01-01",
             "sentiment_score": 0.2,
-            "score": 7.0,
-            "happiness_score": 6.0,
-            "department": "Engineering",
-            "topics_json": '{"manager relationship": 0.8}'
+            "total_experience": 5.0,
+            "primary_concern": "Team",
+            "topics_json": '{"Team": 0.8}'
         },
         {
             "employee_id": "EMP001",
             "survey_date": "2026-02-01",
             "sentiment_score": 0.4,
-            "score": 9.0,
-            "happiness_score": 8.0,
-            "department": "Engineering",
-            "topics_json": '{"manager relationship": 0.9}'
+            "total_experience": 5.0,
+            "primary_concern": "RO",
+            "topics_json": '{"Team": 0.9}'
         }
     ]
     df = pd.DataFrame(data)
@@ -71,11 +69,9 @@ def test_build_features_for_employee():
     assert features["sentiment_trend"] > 0
     assert features["sentiment_velocity"] == 0.2
     assert features["survey_count"] == 2
-    assert features["latest_enps"] == 9.0
-    assert features["avg_enps"] == 8.0
-    assert features["happiness_score"] == 8.0
-    assert features["department"] == "Engineering"
-    assert "topic_manager_relationship" in features
+    assert features["total_experience"] == 5.0
+    assert features["primary_concern"] == "RO"
+    assert "topic_Team" in features
 
 
 def test_build_features_batch():
