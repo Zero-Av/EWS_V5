@@ -10,7 +10,7 @@ import {
   ZoneTrendChart, RiskDonutChart, NexusTooltip, C,
 } from "@/components/charts"
 import {
-  Activity, Users, Smile, TrendingUp,
+  Activity, Users, Smile, TrendingUp, ArrowLeftRight,
   AlertTriangle, Building2, ChevronRight, RefreshCw,
   ShieldCheck, Clock,
 } from "lucide-react"
@@ -77,8 +77,6 @@ export default function WorkforcePage() {
     [kpis]
   )
 
-  const eNPS = kpis ? Math.round((kpis.avg_sentiment ?? 0) * 100) : null
-
   const withHealth = teams.filter(t => t.health != null)
   const orgHealth = withHealth.length
     ? Math.round(withHealth.reduce((s, t) => s + (t.health as number), 0) / withHealth.length)
@@ -112,20 +110,25 @@ export default function WorkforcePage() {
         </div>
 
         {/* KPI Row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {loading || teamsLoading ? Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />) : (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {loading || teamsLoading ? Array.from({ length: 6 }).map((_, i) => <KpiCardSkeleton key={i} />) : (
             <>
               <KpiCard label="Total Monitored"  value={kpis?.total_employees ?? "—"}  icon={Users}        iconColor="blue" />
               <KpiCard label="Org Health Score" value={orgHealth != null ? `${orgHealth}%` : "—"}
                 icon={Activity} iconColor="green" valueColor="var(--green)" />
-              <KpiCard label="eNPS Score"       value={eNPS !== null ? (eNPS > 0 ? `+${eNPS}` : eNPS) : "—"}
-                icon={Smile} iconColor="violet" valueColor="var(--violet)"
-                sub="Based on avg sentiment" />
+              <KpiCard label="Improved to Green" value={kpis?.zone_changes?.improved ?? "—"}
+                icon={TrendingUp} iconColor="green"
+                valueColor={(kpis?.zone_changes?.improved ?? 0) > 0 ? "var(--green)" : undefined}
+                sub="Moved from RED/AMBER to GREEN" />
+              <KpiCard label="Fell from Green" value={kpis?.zone_changes?.escalated ?? "—"}
+                icon={ArrowLeftRight} iconColor="red"
+                valueColor={(kpis?.zone_changes?.escalated ?? 0) > 0 ? "var(--red)" : undefined}
+                sub="Moved from GREEN to AMBER/RED" />
               <KpiCard label="Depts at Risk"    value={deptsAtRisk.length}
                 icon={AlertTriangle} iconColor="red"
                 valueColor={deptsAtRisk.length > 0 ? "var(--red)" : undefined}
                 sub="Health score below 60%" />
-              <KpiCard label="Survey Coverage"  value={kpis?.survey_coverage ?? "—"}  icon={TrendingUp}   iconColor="blue"
+              <KpiCard label="Survey Coverage"  value={kpis?.survey_coverage ?? "—"}  icon={Smile}   iconColor="blue"
                 sub="Employees with survey data" />
             </>
           )}

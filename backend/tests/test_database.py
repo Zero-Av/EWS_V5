@@ -17,6 +17,7 @@ from modules.database import (
     db_save_classifications,
     db_get_latest_classifications,
     get_dashboard_kpis,
+    db_get_zone_changes,
     db_create_alert,
     db_get_alerts,
     db_acknowledge_alert,
@@ -165,22 +166,55 @@ def test_db_get_latest_classifications(mock_connect):
 def test_get_dashboard_kpis(mock_connect):
     mock_cursor = MagicMock()
     mock_connect.return_value.cursor.return_value = mock_cursor
-    
-    # Mock two query results (zone distribution and sentiment/coverage)
-    mock_cursor.fetchall.return_value = [
-        {"risk_zone": "GREEN", "cnt": 5},
-        {"risk_zone": "RED", "cnt": 1}
+
+    # get_dashboard_kpis() makes 2 of its own queries, then calls
+    # db_get_zone_changes() internally, which makes 2 more (last_upload
+    # lookup, then the from/to transition aggregate). Sequence both
+    # fetchone and fetchall to match that exact call order.
+    mock_cursor.fetchall.side_effect = [
+        [{"risk_zone": "GREEN", "cnt": 5}, {"risk_zone": "RED", "cnt": 1}],  # zone distribution
+        [],  # db_get_zone_changes: no transitions found
     ]
-    mock_cursor.fetchone.return_value = {
-        "avg_sentiment": 0.45,
-        "employee_count": 6
-    }
-    
+    mock_cursor.fetchone.side_effect = [
+        {"avg_sentiment": 0.45, "employee_count": 6},  # sentiment/coverage
+        {"last_upload": "2025-01-01T00:00:00"},        # db_get_zone_changes boundary
+    ]
+
     kpis = get_dashboard_kpis()
     assert kpis["total_employees"] == 6
     assert kpis["pct_red"] == 16.7
     assert kpis["avg_sentiment"] == 0.45
     assert kpis["survey_coverage"] == 6
+    assert kpis["zone_changes"] == {"total": 0, "escalated": 0, "improved": 0, "details": []}
+
+
+@patch("modules.database._connect")
+def test_db_get_zone_changes_green_specific(mock_connect):
+    """
+    `improved` must count ONLY RED/AMBER -> GREEN.
+    `escalated` must count ONLY GREEN -> AMBER/RED.
+    RED <-> AMBER transitions must affect neither bucket, but must still
+    show up in `total` and `details`.
+    """
+    mock_cursor = MagicMock()
+    mock_connect.return_value.cursor.return_value = mock_cursor
+
+    mock_cursor.fetchone.return_value = {"last_upload": "2025-01-01T00:00:00"}
+    mock_cursor.fetchall.return_value = [
+        {"from_zone": "RED",   "to_zone": "GREEN", "cnt": 3},  # improved
+        {"from_zone": "AMBER", "to_zone": "GREEN", "cnt": 2},  # improved
+        {"from_zone": "GREEN", "to_zone": "RED",   "cnt": 1},  # escalated
+        {"from_zone": "GREEN", "to_zone": "AMBER", "cnt": 4},  # escalated
+        {"from_zone": "RED",   "to_zone": "AMBER", "cnt": 5},  # neither bucket
+        {"from_zone": "AMBER", "to_zone": "RED",   "cnt": 6},  # neither bucket
+    ]
+
+    result = db_get_zone_changes()
+
+    assert result["improved"]  == 5   # 3 + 2
+    assert result["escalated"] == 5   # 1 + 4
+    assert result["total"]     == 21  # 3+2+1+4+5+6
+    assert len(result["details"]) == 6
 
 
 @patch("modules.database._connect")

@@ -11,6 +11,12 @@ export interface DashboardData {
     pct_green: number
     avg_sentiment: number
     survey_coverage: number
+    zone_changes?: {
+      total:     number
+      improved:  number   // RED or AMBER -> GREEN
+      escalated: number   // GREEN -> AMBER or RED
+      details:   { from: string; to: string; count: number }[]
+    }
   } | null
   classifications: any[]
   modelInfo: { has_model: boolean; metadata?: any } | null

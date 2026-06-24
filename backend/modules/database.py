@@ -580,7 +580,13 @@ def db_get_zone_changes() -> dict:
     Boundary = MAX(surveys.created_at) — the timestamp of the last survey row
     inserted. Classifications before that line = old state, classifications
     at or after = new state (produced by running the classifier on the fresh data).
- 
+
+    `improved`  = count of employees who moved from RED or AMBER -> GREEN.
+    `escalated` = count of employees who moved from GREEN -> AMBER or RED.
+    RED <-> AMBER transitions are tracked in `total` and `details` but are
+    intentionally excluded from both `improved` and `escalated`, since neither
+    endpoint of that transition is GREEN.
+
     Returns all-zeros when no classifier has been run yet after the latest
     survey upload, or when fewer than two upload+classify cycles exist.
     """
@@ -628,8 +634,8 @@ def db_get_zone_changes() -> dict:
  
     RISK_RANK = {"GREEN": 0, "AMBER": 1, "RED": 2}
     total     = 0
-    escalated = 0
-    improved  = 0
+    escalated = 0   # GREEN -> AMBER or GREEN -> RED only
+    improved  = 0   # RED or AMBER -> GREEN only
     details   = []
  
     for r in rows:
@@ -638,10 +644,14 @@ def db_get_zone_changes() -> dict:
         cnt       = int(r["cnt"])
         total    += cnt
         details.append({"from": from_zone, "to": to_zone, "count": cnt})
-        if RISK_RANK.get(to_zone, 0) > RISK_RANK.get(from_zone, 0):
+
+        if from_zone == "GREEN" and to_zone in ("AMBER", "RED"):
             escalated += cnt
-        else:
-            improved  += cnt
+        elif from_zone in ("AMBER", "RED") and to_zone == "GREEN":
+            improved += cnt
+        # RED <-> AMBER transitions are excluded from both buckets —
+        # they don't involve GREEN, so neither metric applies to them.
+        # They still count toward `total` and appear in `details`.
  
     details.sort(
         key=lambda d: (RISK_RANK.get(d["to"], 0) - RISK_RANK.get(d["from"], 0)),

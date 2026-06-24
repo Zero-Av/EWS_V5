@@ -133,7 +133,6 @@ export default function DashboardPage() {
   const trendData  = (kpis?.zone_trend ?? []).map((p: any) => ({
     month: p.month, Stable: p.GREEN, Watch: p.AMBER, Critical: p.RED,
   }))
-  const eNPS       = kpis ? Math.round((kpis.avg_sentiment ?? 0) * 100) : null
   const topTeamsByHealth = [...teams]
     .filter(t => t.health != null)
     .sort((a, b) => (a.health as number) - (b.health as number))
@@ -226,14 +225,6 @@ export default function DashboardPage() {
                 sub="Scale: –1.0 to +1.0"
               />
               <KpiCard
-                label="eNPS Score"
-                value={eNPS !== null ? (eNPS > 0 ? `+${eNPS}` : String(eNPS)) : "—"}
-                icon={TrendingUp}
-                iconColor="violet"
-                valueColor="var(--violet)"
-                sub="Based on avg sentiment"
-              />
-              <KpiCard
                 label="Critical (RED)"
                 value={fmt(redCount)}
                 icon={AlertTriangle}
@@ -242,28 +233,20 @@ export default function DashboardPage() {
                 sub="Require immediate action"
               />
               <KpiCard
-                label="Zone Changes"
-                value={kpis?.zone_changes?.total != null ? String(kpis.zone_changes.total) : "—"}
+                label="Improved to Green"
+                value={kpis?.zone_changes?.improved != null ? String(kpis.zone_changes.improved) : "—"}
+                icon={TrendingUp}
+                iconColor="green"
+                valueColor={(kpis?.zone_changes?.improved ?? 0) > 0 ? "var(--green)" : undefined}
+                sub="Moved from RED/AMBER to GREEN"
+              />
+              <KpiCard
+                label="Fell from Green"
+                value={kpis?.zone_changes?.escalated != null ? String(kpis.zone_changes.escalated) : "—"}
                 icon={ArrowLeftRight}
-                iconColor={
-                  (kpis?.zone_changes?.escalated ?? 0) > (kpis?.zone_changes?.improved ?? 0)
-                    ? "red"
-                    : (kpis?.zone_changes?.improved ?? 0) > 0
-                    ? "green"
-                    : "violet"
-                }
-                valueColor={
-                  (kpis?.zone_changes?.escalated ?? 0) > (kpis?.zone_changes?.improved ?? 0)
-                    ? "var(--red)"
-                    : (kpis?.zone_changes?.improved ?? 0) > 0
-                    ? "var(--green)"
-                    : undefined
-                }
-                sub={
-                  kpis?.zone_changes?.total > 0
-                    ? `↑ ${kpis.zone_changes.escalated} escalated · ↓ ${kpis.zone_changes.improved} improved`
-                    : "No changes since last run"
-                }
+                iconColor="red"
+                valueColor={(kpis?.zone_changes?.escalated ?? 0) > 0 ? "var(--red)" : undefined}
+                sub="Moved from GREEN to AMBER/RED"
               />
             </>
           )}
