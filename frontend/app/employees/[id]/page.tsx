@@ -172,7 +172,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
 
         {/* ── Error state ──────────────────────────────────────── */}
         {error && (
-          <div className="alert-critical mb-6" role="alert">
+          <div className="alert-RED mb-6" role="alert">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
             <div>
               <p className="font-semibold">Failed to load employee data</p>

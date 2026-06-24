@@ -81,9 +81,9 @@ export default function AnalyticsPage() {
   }
 
   const zoneData = [
-    { name: "Stable",   value: kpis?.zone_distribution?.GREEN ?? 0, color: "#16A34A" },
-    { name: "Watch",    value: kpis?.zone_distribution?.AMBER ?? 0, color: "#D97706" },
-    { name: "Critical", value: kpis?.zone_distribution?.RED   ?? 0, color: "#DC2626" },
+    { name: "GREEN",   value: kpis?.zone_distribution?.GREEN ?? 0, color: "#16A34A" },
+    { name: "AMBER",    value: kpis?.zone_distribution?.AMBER ?? 0, color: "#D97706" },
+    { name: "RED", value: kpis?.zone_distribution?.RED   ?? 0, color: "#DC2626" },
   ]
 
   const topRisk = [...clsf].sort((a, b) => b.risk_score - a.risk_score).slice(0, 10)
@@ -109,8 +109,8 @@ export default function AnalyticsPage() {
           {loading ? Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />) : (
             <>
               <KpiCard label="Total Employees"   value={kpis?.total_employees ?? "—"}   icon={Users}         iconColor="blue" />
-              <KpiCard label="Critical (RED)"    value={kpis?.zone_distribution?.RED ?? 0}   icon={AlertTriangle} iconColor="red"   valueColor={kpis?.zone_distribution?.RED > 0 ? "var(--red)" : undefined} />
-              <KpiCard label="Watch (AMBER)"     value={kpis?.zone_distribution?.AMBER ?? 0} icon={AlertTriangle} iconColor="amber" valueColor="var(--amber)" />
+              <KpiCard label="RED"    value={kpis?.zone_distribution?.RED ?? 0}   icon={AlertTriangle} iconColor="red"   valueColor={kpis?.zone_distribution?.RED > 0 ? "var(--red)" : undefined} />
+              <KpiCard label="AMBER"     value={kpis?.zone_distribution?.AMBER ?? 0} icon={AlertTriangle} iconColor="amber" valueColor="var(--amber)" />
               <KpiCard label="Avg Sentiment"     value={kpis?.avg_sentiment != null ? (kpis.avg_sentiment > 0 ? `+${kpis.avg_sentiment}` : String(kpis.avg_sentiment)) : "—"} icon={TrendingUp} iconColor="green" valueColor="var(--green)" />
             </>
           )}

@@ -198,7 +198,7 @@ export default function InsightsPage() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                  { label: "Critical now",      value: String(redCount),   sub: "RED zone — needs action this week", color: "var(--red)",   icon: ShieldAlert },
+                  { label: "RED now",      value: String(redCount),   sub: "RED zone — needs action this week", color: "var(--red)",   icon: ShieldAlert },
                   { label: "Needs monitoring",  value: String(amberCount), sub: "AMBER zone — proactive check-ins",  color: "var(--amber)", icon: AlertTriangle },
                   { label: "Currently stable",  value: String(greenCount), sub: "GREEN zone — no action needed",     color: "var(--green)", icon: Users },
                 ].map(p => (

@@ -286,7 +286,7 @@ function EmployeeAccordionRow({
                       >
                         <span className="inline-block w-2 h-2 rounded-full mr-1.5"
                           style={{ background: active ? ZONE_COLORS[z] : "var(--subtle)" }} />
-                        {z === "GREEN" ? "Stable" : z === "AMBER" ? "Watch" : "Critical"}
+                        {z === "GREEN" ? "GREEN" : z === "AMBER" ? "AMBER" : "RED"}
                       </button>
                     )
                   })}
@@ -386,7 +386,7 @@ function EmployeeAccordionRow({
                 </div>
               )}
               {sentError && (
-                <div className="alert-critical" role="alert">
+                <div className="alert-RED" role="alert">
                   <AlertTriangle className="w-4 h-4 flex-shrink-0" />{sentError}
                 </div>
               )}
@@ -550,9 +550,9 @@ function EmployeeListInner() {
 
   const ZONES: { value: Zone; label: string }[] = [
     { value: "ALL",   label: "All" },
-    { value: "RED",   label: "Critical" },
-    { value: "AMBER", label: "Watch" },
-    { value: "GREEN", label: "Stable" },
+    { value: "RED",   label: "RED" },
+    { value: "AMBER", label: "AMBER" },
+    { value: "GREEN", label: "GREEN" },
   ]
 
   const toggleRow = (id: string) =>
@@ -662,7 +662,7 @@ function EmployeeListInner() {
                           >
                             <span className="w-1.5 h-1.5 rounded-full inline-block mr-1"
                               style={{ background: ZONE_COLORS[r.hrbp_risk_zone] }} />
-                            {r.hrbp_risk_zone === "GREEN" ? "Stable" : r.hrbp_risk_zone === "AMBER" ? "Watch" : "Critical"}
+                            {r.hrbp_risk_zone === "GREEN" ? "GREEN" : r.hrbp_risk_zone === "AMBER" ? "AMBER" : "RED"}
                           </span>
                         ) : (
                           <span className="text-xs text-muted italic">Not set</span>
