@@ -113,5 +113,6 @@ ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
 LLM_TEMPERATURE = 0.2
 
 # ── Sentiment aggregation defaults ───────────────────────────────────────────
-SENTIMENT_WINDOW_MONTHS = 6    # rolling window for avg sentiment
+SENTIMENT_WINDOW_MONTHS = 6          # already exists — currently unused, this fix activates it
+SENTIMENT_DECAY_HALFLIFE_SURVEYS = 2   # rolling window for avg sentiment
 VELOCITY_LOOKBACK       = 2    # number of most recent surveys for velocity calc

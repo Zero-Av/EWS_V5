@@ -282,16 +282,16 @@ code, pre, .font-mono {
 
   /* ──────── RISK ZONE BADGES (always 3 signals: dot + text + border) ──────── */
 
-  .risk-GREEN  { @apply badge badge-green; }
-  .risk-AMBER    { @apply badge badge-amber; }
-  .risk-RED { @apply badge badge-red; }
+  .risk-stable   { @apply badge badge-green; }
+  .risk-watch    { @apply badge badge-amber; }
+  .risk-critical { @apply badge badge-red; }
 
   /* ──────── ALERT BANNERS ──────── */
 
   .alert-banner {
     @apply flex items-start gap-3 px-4 py-3 rounded-xl text-sm border;
   }
-  .alert-RED {
+  .alert-critical {
     @apply alert-banner;
     background: var(--red-light);
     border-color: #FCA5A5;

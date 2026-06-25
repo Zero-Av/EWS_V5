@@ -131,15 +131,15 @@ export default function DashboardPage() {
   const redCount   = kpis?.zone_distribution?.RED   ?? 0
   const amberCount = kpis?.zone_distribution?.AMBER ?? 0
   const trendData  = (kpis?.zone_trend ?? []).map((p: any) => ({
-    month: p.month, GREEN: p.GREEN, AMBER: p.AMBER, RED: p.RED,
+    month: p.month, Stable: p.GREEN, Watch: p.AMBER, Critical: p.RED,
   }))
   const topTeamsByHealth = [...teams]
     .filter(t => t.health != null)
     .sort((a, b) => (a.health as number) - (b.health as number))
     .slice(0, 5)
 
-  /* ── RED employees (top 5 for dashboard) ─────────────── */
-  const REDEmps = clsf
+  /* ── critical employees (top 5 for dashboard) ─────────────── */
+  const criticalEmps = clsf
     .filter(c => c.risk_zone === "RED")
     .sort((a, b) => b.risk_score - a.risk_score)
     .slice(0, 5)
@@ -152,10 +152,10 @@ export default function DashboardPage() {
         {/* ── Page header ──────────────────────────────────────── */}
         <div className="page-header">
           <div>
-            <h1 className="page-title">Dashboard</h1>
-            {/* <p className="page-subtitle">
+            <h1 className="page-title">Executive Dashboard</h1>
+            <p className="page-subtitle">
               Workforce intelligence · AI-powered risk monitoring and intervention recommendations
-            </p> */}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -166,7 +166,7 @@ export default function DashboardPage() {
               <RefreshCw className="w-3.5 h-3.5" />
               Refresh
             </button>
-            {/* {model?.has_model && (
+            {model?.has_model && (
               <button
                 onClick={runClassifier}
                 disabled={classifying}
@@ -178,17 +178,17 @@ export default function DashboardPage() {
                   : <><Play className="w-3.5 h-3.5" />Run Classifier</>
                 }
               </button>
-            )} */}
+            )}
           </div>
         </div>
 
-        {/* ── RED alert banner ──────────────────────────────
+        {/* ── Critical alert banner ──────────────────────────────
         {redCount > 0 && (
-          <div className="alert-RED animate-fade-in" role="alert">
+          <div className="alert-critical animate-fade-in" role="alert">
             <ShieldAlert className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
             <div className="flex-1 min-w-0">
               <span className="font-semibold">
-                {redCount} employee{redCount !== 1 ? "s" : ""} in the RED risk zone
+                {redCount} employee{redCount !== 1 ? "s" : ""} in the critical risk zone
               </span>
               <span className="font-normal ml-1">
                 — immediate HRBP review recommended
@@ -197,7 +197,7 @@ export default function DashboardPage() {
             <Link
               href="/employees?zone=RED"
               className="flex items-center gap-1 text-xs font-bold whitespace-nowrap hover:underline"
-              aria-label="View all RED employees"
+              aria-label="View all critical employees"
             >
               View all <ChevronRight className="w-3.5 h-3.5" />
             </Link>
@@ -225,7 +225,7 @@ export default function DashboardPage() {
                 sub="Scale: –1.0 to +1.0"
               />
               <KpiCard
-                label="RED"
+                label="Critical (RED)"
                 value={fmt(redCount)}
                 icon={AlertTriangle}
                 iconColor="red"
@@ -269,15 +269,15 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-4 text-xs font-semibold">
                   <span className="flex items-center gap-1.5" style={{ color: "var(--green)" }}>
                     <span className="w-2 h-2 rounded-full bg-green" aria-hidden="true" />
-                    GREEN {Math.round(kpis.pct_green ?? 0)}%
+                    Stable {Math.round(kpis.pct_green ?? 0)}%
                   </span>
                   <span className="flex items-center gap-1.5" style={{ color: "var(--amber)" }}>
                     <span className="w-2 h-2 rounded-full bg-amber" aria-hidden="true" />
-                    AMBER {Math.round(kpis.pct_amber ?? 0)}%
+                    Watch {Math.round(kpis.pct_amber ?? 0)}%
                   </span>
                   <span className="flex items-center gap-1.5" style={{ color: "var(--red)" }}>
                     <span className="w-2 h-2 rounded-full bg-red" aria-hidden="true" />
-                    RED {Math.round(kpis.pct_red ?? 0)}%
+                    Critical {Math.round(kpis.pct_red ?? 0)}%
                   </span>
                 </div>
               )}
@@ -287,7 +287,7 @@ export default function DashboardPage() {
               <div
                 className="chart-container"
                 role="img"
-                aria-label="Area chart showing GREEN, AMBER, and RED employee counts by classifier run"
+                aria-label="Area chart showing stable, watch, and critical employee counts by classifier run"
               >
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={trendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -309,9 +309,9 @@ export default function DashboardPage() {
                     <XAxis dataKey="month" stroke="var(--subtle)" fontSize={11} tickLine={false} axisLine={false} />
                     <YAxis stroke="var(--subtle)" fontSize={11} tickLine={false} axisLine={false} />
                     <Tooltip content={<NexusTooltip />} />
-                    <Area type="monotone" dataKey="GREEN"   stroke="#16A34A" strokeWidth={2} fill="url(#gGreen)" />
-                    <Area type="monotone" dataKey="AMBER"    stroke="#D97706" strokeWidth={2} fill="url(#gAmber)" />
-                    <Area type="monotone" dataKey="RED" stroke="#DC2626" strokeWidth={2} fill="url(#gRed)" />
+                    <Area type="monotone" dataKey="Stable"   stroke="#16A34A" strokeWidth={2} fill="url(#gGreen)" />
+                    <Area type="monotone" dataKey="Watch"    stroke="#D97706" strokeWidth={2} fill="url(#gAmber)" />
+                    <Area type="monotone" dataKey="Critical" stroke="#DC2626" strokeWidth={2} fill="url(#gRed)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -334,7 +334,7 @@ export default function DashboardPage() {
                     ? Math.round((count / kpis.total_employees) * 100)
                     : 0
                   const color = ZONE_COLORS[zone]
-                  const label = zone === "GREEN" ? "GREEN" : zone === "AMBER" ? "AMBER" : "RED"
+                  const label = zone === "GREEN" ? "Stable" : zone === "AMBER" ? "Watch" : "Critical"
                   return (
                     <div key={zone} className="flex items-center gap-3">
                       <span className="text-xs font-semibold w-14 flex-shrink-0" style={{ color }}>
@@ -363,7 +363,7 @@ export default function DashboardPage() {
               <div>
                 <h2 className="section-title">
                   <AlertTriangle className="w-4 h-4 text-red" aria-hidden="true" />
-                  RED Alerts
+                  Critical Alerts
                 </h2>
                 <p className="section-sub">Requires HRBP review</p>
               </div>
@@ -378,7 +378,7 @@ export default function DashboardPage() {
               className="flex-1 space-y-3 overflow-y-auto"
               style={{ maxHeight: 320 }}
               role="list"
-              aria-label="Active RED alerts"
+              aria-label="Active critical alerts"
             >
               {alerts.length > 0 ? (
                 alerts.slice(0, 6).map(a => (
@@ -394,7 +394,7 @@ export default function DashboardPage() {
                         className="text-[9px] font-bold uppercase tracking-wider"
                         style={{ color: "var(--red)" }}
                       >
-                        RED
+                        Critical
                       </span>
                     </div>
                     <p className="text-xs text-text-2 leading-relaxed mb-2">{a.message}</p>
@@ -524,7 +524,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Right column: team health + RED employees */}
+          {/* Right column: team health + critical employees */}
           <div className="space-y-5">
 
             {/* Team health bars */}
@@ -578,8 +578,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Top RED employees */}
-            {REDEmps.length > 0 && (
+            {/* Top critical employees */}
+            {criticalEmps.length > 0 && (
               <div className="card">
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -587,7 +587,7 @@ export default function DashboardPage() {
                       <ShieldAlert className="w-4 h-4 text-red" aria-hidden="true" />
                       Highest Risk Employees
                     </h2>
-                    <p className="section-sub">Top RED zone — immediate action required</p>
+                    <p className="section-sub">Top critical zone — immediate action required</p>
                   </div>
                   <Link
                     href="/employees?zone=RED"
@@ -597,7 +597,7 @@ export default function DashboardPage() {
                   </Link>
                 </div>
                 <div className="space-y-2" role="list" aria-label="Highest risk employees">
-                  {REDEmps.map(emp => (
+                  {criticalEmps.map(emp => (
                     <Link
                       key={emp.employee_id}
                       href={`/employees/${emp.employee_id}`}

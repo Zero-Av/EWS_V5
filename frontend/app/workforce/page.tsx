@@ -1,6 +1,7 @@
 "use client"
 import { useMemo, useState, useEffect, useCallback } from "react"
 import AppShell from "@/components/AppShell"
+import { useAuth } from "@/lib/auth-context"
 import KpiCard  from "@/components/ui/KpiCard"
 import { KpiCardSkeleton, Skeleton } from "@/components/ui/Skeleton"
 import { useDashboard }    from "@/lib/hooks/useDashboard"
@@ -12,7 +13,7 @@ import {
 import {
   Activity, Users, Smile, TrendingUp, ArrowLeftRight,
   AlertTriangle, Building2, ChevronRight, RefreshCw,
-  ShieldCheck, Clock,
+  ShieldCheck, Clock, Shield,
 } from "lucide-react"
 import Link from "next/link"
 import {
@@ -29,6 +30,7 @@ function healthColor(score: number) {
 }
 
 export default function WorkforcePage() {
+  const { user } = useAuth()
   const { kpis, loading, lastUpdated, refresh } = useDashboard(120_000)
   const toast = useToast()
 
@@ -72,7 +74,7 @@ export default function WorkforcePage() {
   // no interpolated/fabricated months.
   const trendData = useMemo(
     () => (kpis?.zone_trend ?? []).map(p => ({
-      month: p.month, GREEN: p.GREEN, AMBER: p.AMBER, RED: p.RED,
+      month: p.month, Stable: p.GREEN, Watch: p.AMBER, Critical: p.RED,
     })),
     [kpis]
   )
@@ -83,6 +85,20 @@ export default function WorkforcePage() {
     : null
   const deptsAtRisk = teams.filter(t => (t.health ?? 100) < 60)
   const attentionDepts = teams.filter(t => (t.health ?? 100) < 75)
+
+  if (user?.role === "analyst") {
+    return (
+      <AppShell>
+        <div className="page-container flex items-center justify-center py-24">
+          <div className="text-center space-y-3">
+            <Shield className="w-12 h-12 mx-auto text-muted opacity-40" />
+            <h1 className="text-lg font-bold text-text">Access Restricted</h1>
+            <p className="text-sm text-muted">This page is not available for your role.</p>
+          </div>
+        </div>
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell>
@@ -165,9 +181,9 @@ export default function WorkforcePage() {
             {kpis && (
               <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-2 text-center">
                 {[
-                  { label: "GREEN",   pct: kpis.pct_green ?? 0, color: C.green },
-                  { label: "AMBER",    pct: kpis.pct_amber ?? 0, color: C.amber },
-                  { label: "RED", pct: kpis.pct_red   ?? 0, color: C.red   },
+                  { label: "Stable",   pct: kpis.pct_green ?? 0, color: C.green },
+                  { label: "Watch",    pct: kpis.pct_amber ?? 0, color: C.amber },
+                  { label: "Critical", pct: kpis.pct_red   ?? 0, color: C.red   },
                 ].map(z => (
                   <div key={z.label}>
                     <p className="text-base font-extrabold font-mono" style={{ color: z.color }}>
@@ -248,12 +264,12 @@ export default function WorkforcePage() {
                         <td className="text-right font-mono text-muted">{d.headcount}</td>
                         <td className="text-right">
                           {d.red > 0 ? (
-                            <span className="badge badge-red text-[10px]">{d.red} RED</span>
+                            <span className="badge badge-red text-[10px]">{d.red} critical</span>
                           ) : d.amber > 0 ? (
-                            <span className="badge badge-amber text-[10px]">{d.amber} AMBER</span>
+                            <span className="badge badge-amber text-[10px]">{d.amber} watch</span>
                           ) : d.red + d.amber + d.green > 0 ? (
                             <span className="flex items-center justify-end gap-1 text-xs font-semibold" style={{ color: C.green }}>
-                              <ShieldCheck className="w-3 h-3" aria-hidden="true" /> All GREEN
+                              <ShieldCheck className="w-3 h-3" aria-hidden="true" /> All stable
                             </span>
                           ) : (
                             <span className="text-xs text-muted">Unclassified</span>

@@ -99,6 +99,7 @@ function UserManagementPanel() {
               <select id="role-sel" className="input" value={form.role}
                 onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
                 <option value="manager">Manager</option>
+                <option value="analyst">Analyst</option>
                 <option value="admin">Admin / HRBP</option>
               </select>
             </div>

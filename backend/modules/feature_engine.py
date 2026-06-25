@@ -27,8 +27,18 @@ from config import (
     KNOWN_CATEGORICAL_FEATURES,
     TOPIC_LABELS,
     SENTIMENT_WINDOW_MONTHS,
+    SENTIMENT_DECAY_HALFLIFE_SURVEYS,   # NEW import
     VELOCITY_LOOKBACK,
 )
+
+def _recency_weights(n: int, half_life: float) -> np.ndarray:
+    """Most recent entry gets weight 1.0; each step back halves the weight."""
+    if n == 0:
+        return np.array([])
+    steps_back = np.arange(n)[::-1]          # 0 for latest, increasing for older
+    return 0.5 ** (steps_back / half_life)
+
+
 
 
 def compute_sentiment_trend(scores: list[float]) -> float:
@@ -70,31 +80,25 @@ def compute_sentiment_velocity(scores: list[float], lookback: int = 2) -> float:
     return round(recent[-1] - recent[0], 4)
 
 
-def build_features_for_employee(
-    surveys_df: pd.DataFrame,
-    employee_id: str,
-) -> dict:
-    """
-    Build a complete feature dict for a single employee from their survey history.
-
-    Args:
-        surveys_df: DataFrame with columns: employee_id, survey_date, 
-                    sentiment_score, topics_json, + any numeric/categorical cols.
-                    Must be pre-filtered to this employee and sorted by date ASC.
-        employee_id: The employee ID.
-
-    Returns:
-        Feature dict ready for the classifier.
-    """
+def build_features_for_employee(surveys_df: pd.DataFrame, employee_id: str) -> dict:
     if surveys_df.empty:
         return {"employee_id": employee_id, "_has_data": False}
 
+    # ── Rolling window: drop surveys older than SENTIMENT_WINDOW_MONTHS
+    #    relative to THIS employee's latest survey, so stale history
+    #    eventually stops influencing the score at all.
+    surveys_df = surveys_df.sort_values("survey_date").copy()
+    dates = pd.to_datetime(surveys_df["survey_date"])
+    cutoff = dates.max() - pd.DateOffset(months=SENTIMENT_WINDOW_MONTHS)
+    surveys_df = surveys_df[dates >= cutoff]
+
     features = {"employee_id": employee_id, "_has_data": True}
 
-    # ── Sentiment aggregation ────────────────────────────────────────────────
+    # ── Sentiment aggregation (now recency-weighted, not a flat mean) ──────
     sentiment_scores = surveys_df["sentiment_score"].dropna().tolist()
+    w = _recency_weights(len(sentiment_scores), SENTIMENT_DECAY_HALFLIFE_SURVEYS)
 
-    features["avg_sentiment"] = round(float(np.mean(sentiment_scores)), 4) if sentiment_scores else 0.0
+    features["avg_sentiment"] = round(float(np.average(sentiment_scores, weights=w)), 4) if sentiment_scores else 0.0
     features["min_sentiment"] = round(float(np.min(sentiment_scores)), 4) if sentiment_scores else 0.0
     features["max_sentiment"] = round(float(np.max(sentiment_scores)), 4) if sentiment_scores else 0.0
     features["std_sentiment"] = round(float(np.std(sentiment_scores)), 4) if len(sentiment_scores) > 1 else 0.0
@@ -131,9 +135,10 @@ def build_features_for_employee(
 
     # ── Latest eNPS score ────────────────────────────────────────────────────
     if "score" in surveys_df.columns:
-        scores = surveys_df["score"].dropna()
-        features["latest_enps"] = float(scores.iloc[-1]) if len(scores) > 0 else 5.0
-        features["avg_enps"] = round(float(scores.mean()), 4) if len(scores) > 0 else 5.0
+        enps_scores = surveys_df["score"].dropna().tolist()
+        enps_w = _recency_weights(len(enps_scores), SENTIMENT_DECAY_HALFLIFE_SURVEYS)
+        features["latest_enps"] = float(enps_scores[-1]) if enps_scores else 5.0
+        features["avg_enps"] = round(float(np.average(enps_scores, weights=enps_w)), 4) if enps_scores else 5.0
 
     # ── Numeric survey features (latest values) ─────────────────────────────
     latest_row = surveys_df.iloc[-1]

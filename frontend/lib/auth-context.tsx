@@ -6,7 +6,7 @@ import { getMe } from "@/lib/api"
 interface AuthUser {
   username:  string
   full_name: string
-  role:      "admin" | "manager"
+  role:      "admin" | "manager" | "hrbp" | "analyst"
 }
 
 interface AuthCtx {

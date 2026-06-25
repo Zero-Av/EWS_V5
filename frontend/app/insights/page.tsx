@@ -1,12 +1,13 @@
 "use client"
 import { useState, useCallback, useEffect } from "react"
 import AppShell from "@/components/AppShell"
+import { useAuth } from "@/lib/auth-context"
 import { Skeleton } from "@/components/ui/Skeleton"
 import { useToast } from "@/lib/toast-context"
 import { getSurveySummary, getTopics, getAnalyticsDashboard, type TeamTopic } from "@/lib/api"
 import {
   Sparkles, RefreshCw, Zap, Brain, TrendingUp,
-  TrendingDown, MessageSquare, AlertTriangle, ShieldAlert, Users,
+  TrendingDown, MessageSquare, AlertTriangle, ShieldAlert, Users, Shield,
 } from "lucide-react"
 
 function sentColor(v: number) {
@@ -15,6 +16,7 @@ function sentColor(v: number) {
 
 export default function InsightsPage() {
   const toast = useToast()
+  const { user } = useAuth()
   const [summary,     setSummary]     = useState("")
   const [summarizing, setSummarizing] = useState(false)
 
@@ -59,6 +61,20 @@ export default function InsightsPage() {
   const redCount   = kpis?.zone_distribution?.RED   ?? 0
   const amberCount = kpis?.zone_distribution?.AMBER ?? 0
   const greenCount = kpis?.zone_distribution?.GREEN ?? 0
+
+  if (user?.role === "analyst") {
+    return (
+      <AppShell>
+        <div className="page-container flex items-center justify-center py-24">
+          <div className="text-center space-y-3">
+            <Shield className="w-12 h-12 mx-auto text-muted opacity-40" />
+            <h1 className="text-lg font-bold text-text">Access Restricted</h1>
+            <p className="text-sm text-muted">This page is not available for your role.</p>
+          </div>
+        </div>
+      </AppShell>
+    )
+  }
 
   return (
     <AppShell>
@@ -198,7 +214,7 @@ export default function InsightsPage() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                  { label: "RED now",      value: String(redCount),   sub: "RED zone — needs action this week", color: "var(--red)",   icon: ShieldAlert },
+                  { label: "Critical now",      value: String(redCount),   sub: "RED zone — needs action this week", color: "var(--red)",   icon: ShieldAlert },
                   { label: "Needs monitoring",  value: String(amberCount), sub: "AMBER zone — proactive check-ins",  color: "var(--amber)", icon: AlertTriangle },
                   { label: "Currently stable",  value: String(greenCount), sub: "GREEN zone — no action needed",     color: "var(--green)", icon: Users },
                 ].map(p => (

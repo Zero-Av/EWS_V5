@@ -13,37 +13,37 @@ interface NavItem {
   href:      string
   label:     string
   icon:      React.ElementType
-  adminOnly: boolean
+  hiddenFor: string[]   // role names that should NOT see this item
 }
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Main",
     items: [
-      { href: "/dashboard", label: "Dashboard",        icon: LayoutDashboard, adminOnly: false },
-      { href: "/workforce", label: "Workforce Health", icon: Activity,        adminOnly: false },
-      { href: "/employees", label: "Employees",        icon: Users,           adminOnly: false },
-      { href: "/teams",     label: "Teams",            icon: Building2,       adminOnly: false },
+      { href: "/dashboard", label: "Dashboard",        icon: LayoutDashboard, hiddenFor: [] },
+      { href: "/workforce", label: "Workforce Health", icon: Activity,        hiddenFor: ["analyst"] },
+      { href: "/employees", label: "Employees",        icon: Users,           hiddenFor: [] },
+      { href: "/teams",     label: "Teams",            icon: Building2,       hiddenFor: [] },
     ],
   },
   {
     label: "Intelligence",
     items: [
-      { href: "/insights", label: "AI Insights", icon: Sparkles, adminOnly: false },
-      { href: "/actions",  label: "Actions",     icon: Zap,      adminOnly: false },
+      { href: "/insights", label: "AI Insights", icon: Sparkles, hiddenFor: ["analyst"] },
+      { href: "/actions",  label: "Actions",     icon: Zap,      hiddenFor: [] },
     ],
   },
   {
     label: "Data",
     items: [
-      { href: "/analytics", label: "Analytics", icon: BarChart2, adminOnly: false },
-      { href: "/reports",   label: "Reports",   icon: FileText,  adminOnly: false },
+      { href: "/analytics", label: "Analytics", icon: BarChart2, hiddenFor: [] },
+      { href: "/reports",   label: "Reports",   icon: FileText,  hiddenFor: [] },
     ],
   },
   {
     label: "System",
     items: [
-      { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+      { href: "/settings", label: "Settings", icon: Settings, hiddenFor: ["analyst", "manager", "hrbp"] },
     ],
   },
 ]
@@ -54,7 +54,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname()
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout } = useAuth()
   const { unreadCount } = useAlerts()
 
   const initials = user?.full_name
@@ -100,7 +100,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2" aria-label="Main navigation">
         {NAV_GROUPS.map(group => {
-          const visibleItems = group.items.filter(item => !item.adminOnly || isAdmin)
+          const visibleItems = group.items.filter(
+            item => !item.hiddenFor.includes(user?.role ?? "")
+          )
           if (!visibleItems.length) return null
 
           return (

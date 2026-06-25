@@ -165,7 +165,7 @@ export default function ReportsPage() {
   const QUICK_STATS = [
     { label: "Employees",   value: loading ? "—" : (kpis?.total_employees ?? "—"), sub: "total monitored" },
     { label: "Coverage",    value: loading ? "—" : (kpis?.survey_coverage  ?? "—"), sub: "survey coverage" },
-    { label: "RED",    value: loading ? "—" : (kpis?.zone_distribution?.RED   ?? 0), sub: "require action" },
+    { label: "Critical",    value: loading ? "—" : (kpis?.zone_distribution?.RED   ?? 0), sub: "require action" },
     { label: "Avg Sentiment",value: loading ? "—" : kpis ? (kpis.avg_sentiment > 0 ? `+${kpis.avg_sentiment}` : kpis.avg_sentiment) : "—", sub: "sentiment score" },
   ]
 
