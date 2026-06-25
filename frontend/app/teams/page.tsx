@@ -89,7 +89,7 @@ function TeamCard({ team }: { team: TeamRecord }) {
           </div>
           <div className="w-px h-8 bg-border" aria-hidden="true" />
           <div className="text-center flex-1">
-            <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-0.5">Critical</p>
+            <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-0.5">RED</p>
             <p className="text-base font-extrabold font-mono" style={{ color: team.red > 0 ? C.red : C.green }}>
               {team.red}
             </p>

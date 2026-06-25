@@ -74,7 +74,7 @@ export default function WorkforcePage() {
   // no interpolated/fabricated months.
   const trendData = useMemo(
     () => (kpis?.zone_trend ?? []).map(p => ({
-      month: p.month, Stable: p.GREEN, Watch: p.AMBER, Critical: p.RED,
+      month: p.month, Stable: p.GREEN, AMBER: p.AMBER, RED: p.RED,
     })),
     [kpis]
   )
@@ -182,8 +182,8 @@ export default function WorkforcePage() {
               <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-2 text-center">
                 {[
                   { label: "Stable",   pct: kpis.pct_green ?? 0, color: C.green },
-                  { label: "Watch",    pct: kpis.pct_amber ?? 0, color: C.amber },
-                  { label: "Critical", pct: kpis.pct_red   ?? 0, color: C.red   },
+                  { label: "AMBER",    pct: kpis.pct_amber ?? 0, color: C.amber },
+                  { label: "RED", pct: kpis.pct_red   ?? 0, color: C.red   },
                 ].map(z => (
                   <div key={z.label}>
                     <p className="text-base font-extrabold font-mono" style={{ color: z.color }}>
@@ -264,9 +264,9 @@ export default function WorkforcePage() {
                         <td className="text-right font-mono text-muted">{d.headcount}</td>
                         <td className="text-right">
                           {d.red > 0 ? (
-                            <span className="badge badge-red text-[10px]">{d.red} critical</span>
+                            <span className="badge badge-red text-[10px]">{d.red} RED</span>
                           ) : d.amber > 0 ? (
-                            <span className="badge badge-amber text-[10px]">{d.amber} watch</span>
+                            <span className="badge badge-amber text-[10px]">{d.amber} AMBER</span>
                           ) : d.red + d.amber + d.green > 0 ? (
                             <span className="flex items-center justify-end gap-1 text-xs font-semibold" style={{ color: C.green }}>
                               <ShieldCheck className="w-3 h-3" aria-hidden="true" /> All stable

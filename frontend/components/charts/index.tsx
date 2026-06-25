@@ -119,9 +119,9 @@ export function SentimentLineChart({ data, height = 180, showZeroLine = true }: 
 
 /* ═══════════════════════════════════════════════════════════════
    ZONE AREA TREND CHART
-   Props: data [{ month, Stable, Watch, Critical }], height?
+   Props: data [{ month, GREEN, AMBER, RED }], height?
 ═══════════════════════════════════════════════════════════════ */
-interface ZoneTrendPoint { month: string; Stable: number; Watch: number; Critical: number }
+interface ZoneTrendPoint { month: string; GREEN: number; AMBER: number; RED: number }
 export function ZoneTrendChart({ data, height = 220 }: { data: ZoneTrendPoint[]; height?: number }) {
   if (!data?.length) {
     return <div className="chart-empty" style={{ height }} aria-label="No zone trend data"><p className="text-sm">Run the classifier to see trends</p></div>
@@ -143,9 +143,9 @@ export function ZoneTrendChart({ data, height = 220 }: { data: ZoneTrendPoint[];
           <YAxis {...axisProps} />
           <Tooltip content={<NexusTooltip />} />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-          <Area type="monotone" dataKey="Stable"   stroke={C.green} strokeWidth={2} fill="url(#gGreen)" />
-          <Area type="monotone" dataKey="Watch"    stroke={C.amber} strokeWidth={2} fill="url(#gAmber)" />
-          <Area type="monotone" dataKey="Critical" stroke={C.red}   strokeWidth={2} fill="url(#gRed)" />
+          <Area type="monotone" dataKey="GREEN"   stroke={C.green} strokeWidth={2} fill="url(#gGreen)" />
+          <Area type="monotone" dataKey="AMBER"    stroke={C.amber} strokeWidth={2} fill="url(#gAmber)" />
+          <Area type="monotone" dataKey="RED" stroke={C.red}   strokeWidth={2} fill="url(#gRed)" />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -223,9 +223,9 @@ export function RiskDonutChart({ distribution, height = 200 }: {
   distribution: Record<string, number>; height?: number
 }) {
   const data = [
-    { name: "Stable",   value: distribution.GREEN ?? 0, color: C.green },
-    { name: "Watch",    value: distribution.AMBER ?? 0, color: C.amber },
-    { name: "Critical", value: distribution.RED   ?? 0, color: C.red   },
+    { name: "GREEN",   value: distribution.GREEN ?? 0, color: C.green },
+    { name: "AMBER",    value: distribution.AMBER ?? 0, color: C.amber },
+    { name: "RED", value: distribution.RED   ?? 0, color: C.red   },
   ].filter(d => d.value > 0)
 
   const total = data.reduce((s, d) => s + d.value, 0)

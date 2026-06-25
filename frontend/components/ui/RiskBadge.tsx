@@ -15,34 +15,34 @@ const CONFIG: Record<string, {
   label: string
 }> = {
   GREEN: {
-    cls: "risk-stable",
+    cls: "risk-GREEN",
     icon: <ShieldCheck className="w-3 h-3" aria-hidden="true" />,
-    label: "Stable",
+    label: "GREEN",
   },
   STABLE: {
-    cls: "risk-stable",
+    cls: "risk-GREEN",
     icon: <ShieldCheck className="w-3 h-3" aria-hidden="true" />,
-    label: "Stable",
+    label: "GREEN",
   },
   AMBER: {
-    cls: "risk-watch",
+    cls: "risk-AMBER",
     icon: <AlertTriangle className="w-3 h-3" aria-hidden="true" />,
-    label: "Watch",
+    label: "AMBER",
   },
   WATCH: {
-    cls: "risk-watch",
+    cls: "risk-AMBER",
     icon: <AlertTriangle className="w-3 h-3" aria-hidden="true" />,
-    label: "Watch",
+    label: "AMBER",
   },
   RED: {
-    cls: "risk-critical",
+    cls: "risk-RED",
     icon: <ShieldAlert className="w-3 h-3" aria-hidden="true" />,
-    label: "Critical",
+    label: "RED",
   },
   CRITICAL: {
-    cls: "risk-critical",
+    cls: "risk-RED",
     icon: <ShieldAlert className="w-3 h-3" aria-hidden="true" />,
-    label: "Critical",
+    label: "RED",
   },
 }
 

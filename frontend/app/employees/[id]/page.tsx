@@ -28,7 +28,7 @@ function sentimentColor(v: number | undefined | null) {
 function VelocityIndicator({ v }: { v: number }) {
   if (v > 0.02)  return <span className="flex items-center gap-1 font-semibold" style={{ color: C.green }}><TrendingUp className="w-4 h-4" />Improving (+{v})</span>
   if (v < -0.02) return <span className="flex items-center gap-1 font-semibold" style={{ color: C.red }}><TrendingDown className="w-4 h-4" />Declining ({v})</span>
-  return <span className="flex items-center gap-1 font-semibold text-muted"><Minus className="w-4 h-4" />Stable</span>
+  return <span className="flex items-center gap-1 font-semibold text-muted"><Minus className="w-4 h-4" />GREEN</span>
 }
 
 function StatTile({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -42,7 +42,7 @@ function StatTile({ label, value, color }: { label: string; value: string; color
 
 /* ─── Status / priority badge classes (mirrors Action Center) ── */
 const PRIORITY_CLS: Record<string, string> = {
-  critical: "badge-red", high: "badge-amber", medium: "badge-blue", low: "badge-gray",
+  RED: "badge-red", high: "badge-amber", medium: "badge-blue", low: "badge-gray",
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -172,7 +172,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
 
         {/* ── Error state ──────────────────────────────────────── */}
         {error && (
-          <div className="alert-critical mb-6" role="alert">
+          <div className="alert-RED mb-6" role="alert">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
             <div>
               <p className="font-semibold">Failed to load employee data</p>

@@ -35,7 +35,7 @@ const NAV_COMMANDS: Command[] = [
 ]
 
 const QUICK_ACTIONS: Command[] = [
-  { id: "qa-red",    label: "View critical employees", sub: "Filter to RED zone",     icon: Shield, iconColor: "var(--red)",    href: "/employees?zone=RED",   group: "Quick Actions", keywords: ["critical","red","urgent"] },
+  { id: "qa-red",    label: "View RED employees", sub: "Filter to RED zone",     icon: Shield, iconColor: "var(--red)",    href: "/employees?zone=RED",   group: "Quick Actions", keywords: ["critical","red","urgent"] },
   { id: "qa-upload", label: "Upload survey data",      sub: "Ingest new CSV",         icon: BarChart2, iconColor: "var(--accent)", href: "/analytics",           group: "Quick Actions", keywords: ["upload","csv","survey","ingest"] },
   { id: "qa-alerts", label: "Resolve alerts",          sub: "Open Action Center",     icon: Zap,    iconColor: "var(--amber)",  href: "/actions",              group: "Quick Actions", keywords: ["alerts","resolve","acknowledge"] },
 ]
@@ -187,7 +187,7 @@ export default function CommandPalette() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-text font-mono">{emp.employee_id}</p>
           <p className="text-xs" style={{ color }}>
-            {zone === "RED" ? "Critical" : zone === "AMBER" ? "Watch" : "Stable"} · {emp.risk_score}% risk
+            {zone === "RED" ? "RED" : zone === "AMBER" ? "AMBER" : "GREEN"} · {emp.risk_score}% risk
           </p>
         </div>
         {active && <ArrowRight className="w-3.5 h-3.5 text-accent flex-shrink-0" aria-hidden="true" />}
