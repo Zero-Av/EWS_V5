@@ -20,22 +20,52 @@ export interface EmployeeSentiment {
   avg_sentiment:      number
 }
 
-/** Values in the HRBP assessment form — all metrics 1-10, score 0-100. */
+export type RagZone = "RED" | "AMBER" | "GREEN"
+
+export type EmployeeStatus = "Active" | "On Leave" | "Notice Period"
+
+export const PRIMARY_CONCERNS = [
+  "Training", "Work Content", "Promotion", "Iris Culture", "RO",
+  "Career Progression", "Others", "Work Life Balance",
+  "Reward and Recognition", "Offboarding", "Health & Wellness",
+  "Compensation", "Policies", "Performance", "Team",
+] as const
+
+export const SECONDARY_REASONS = [
+  "Compensation", "Iris Culture", "Reward and Recognition",
+  "Work Life Balance", "Promotion", "Career Progression",
+  "Work Content", "Performance", "Team", "RO",
+  "Health & Wellness", "Policies", "Others", "Training",
+] as const
+
+export const HRBP_CONNECT_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Not Connected",
+] as const
+
+/** Values captured in the HRBP assessment form — aligned to the EWS data schema. */
 export interface EmployeeProfileData {
-  happiness_score?:    number | null
-  excitement_level?:   number | null
-  stress_level?:       number | null
-  workload_level?:     number | null
-  work_life_balance?:  number | null
-  manager_support?:    number | null
-  job_satisfaction?:   number | null
-  productivity?:       number | null
-  team_collaboration?: number | null
-  career_growth?:      number | null
-  absenteeism?:        number | null
-  score?:              number | null
-  comments?:           string | null
-  hrbp_risk_zone?:     "RED" | "AMBER" | "GREEN" | null
+  // Performance
+  rating?:              number | null   // Rating 2025-2026 (scale 1.0–5.0)
+
+  // Status & engagement
+  employee_status?:     EmployeeStatus | string | null
+  hrbp_connect_month?:  string | null   // Month abbreviation or "Not Connected"
+  ageing?:              number | null   // Days in current RAG status
+
+  // RAG classification
+  hrbp_risk_zone?:      RagZone | null  // Current RAG status (HRBP-assigned)
+  previous_rag?:        RagZone | null  // Prior RAG status
+
+  // Concern tracking
+  previous_concern?:    string | null
+  primary_concern?:     string | null
+  secondary_reason?:    string | null
+
+  // Free-form notes
+  score?:               number | null   // Engagement score 0–10
+  comments?:            string | null
 }
 
 export interface EmployeeProfile extends EmployeeProfileData {
@@ -46,7 +76,7 @@ export interface EmployeeProfile extends EmployeeProfileData {
 
 export interface ManualClassifyResult {
   employee_id:              string
-  risk_zone:                "RED" | "AMBER" | "GREEN"
+  risk_zone:                RagZone
   risk_score:               number
   probabilities:            Record<string, number>
   top_factors:              { feature: string; shap_value: number; actual_value: number }[]
@@ -54,9 +84,9 @@ export interface ManualClassifyResult {
   sentiment_score:          number
   sentiment_label:          string
   history_length:           number
-  previous_zone:            "RED" | "AMBER" | "GREEN" | null  
-  zone_changed:             boolean                             
-  interventions_cancelled:  number                             
+  previous_zone:            RagZone | null
+  zone_changed:             boolean
+  interventions_cancelled:  number
 }
 
 // ── Functions ────────────────────────────────────────────────────────────────

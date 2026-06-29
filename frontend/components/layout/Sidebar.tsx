@@ -21,7 +21,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Main",
     items: [
       { href: "/dashboard", label: "Dashboard",        icon: LayoutDashboard, hiddenFor: [] },
-      { href: "/workforce", label: "Workforce Health", icon: Activity,        hiddenFor: ["analyst"] },
+      { href: "/workforce", label: "Workforce Health", icon: Activity,        hiddenFor: ["analyst","manager"] },
       { href: "/employees", label: "Employees",        icon: Users,           hiddenFor: [] },
       { href: "/teams",     label: "Teams",            icon: Building2,       hiddenFor: [] },
     ],
@@ -29,7 +29,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Intelligence",
     items: [
-      { href: "/insights", label: "AI Insights", icon: Sparkles, hiddenFor: ["analyst"] },
+      { href: "/insights", label: "AI Insights", icon: Sparkles, hiddenFor: ["analyst","manager"] },
       { href: "/actions",  label: "Actions",     icon: Zap,      hiddenFor: [] },
     ],
   },

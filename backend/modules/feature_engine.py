@@ -87,6 +87,8 @@ def build_features_for_employee(surveys_df: pd.DataFrame, employee_id: str) -> d
     # ── Rolling window: drop surveys older than SENTIMENT_WINDOW_MONTHS
     #    relative to THIS employee's latest survey, so stale history
     #    eventually stops influencing the score at all.
+    
+    surveys_df["survey_date"] = pd.to_datetime(surveys_df["survey_date"], errors="coerce")
     surveys_df = surveys_df.sort_values("survey_date").copy()
     dates = pd.to_datetime(surveys_df["survey_date"])
     cutoff = dates.max() - pd.DateOffset(months=SENTIMENT_WINDOW_MONTHS)

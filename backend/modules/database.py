@@ -44,7 +44,7 @@ def init_db() -> None:
             id               SERIAL PRIMARY KEY,
             employee_id      TEXT NOT NULL,
             employee_name    TEXT,
-            survey_date      TEXT NOT NULL,
+            survey_date      DATE,
             comments         TEXT,
             sentiment_score  REAL,
             sentiment_label  TEXT,
@@ -930,36 +930,56 @@ def db_delete_intervention(intervention_id: int) -> bool:
 
 def db_get_zone_trend() -> list[dict]:
     """
-    Real risk-zone distribution over time, grouped by the calendar month each
-    classifier run happened (classifications.classified_at). Unlike a
-    simulated/interpolated curve, this only contains points for months where
-    the classifier was actually run — if it has only been run once, the
-    trend will correctly contain a single point rather than a fabricated
-    multi-month curve.
+    Real risk-zone distribution over time, grouped by the calendar month of
+    each employee's most recent SURVEY DATE (the survey_date column derived
+    from your CSV's "Date of joining"/connect-date field) as of each
+    classification run -- not by when the classifier was executed. Two
+    classify runs done back-to-back after uploading two separate survey
+    waves will still land in two different months if the underlying survey
+    dates were different.
     """
     conn = _connect()
     cur = conn.cursor()
     cur.execute("""
-        SELECT to_char(classified_at, 'YYYY-MM') AS month, risk_zone,
-               COUNT(DISTINCT employee_id) AS cnt
-        FROM (
-            SELECT DISTINCT ON (employee_id, to_char(classified_at, 'YYYY-MM'))
-                   employee_id, risk_zone, classified_at
-            FROM classifications
-            ORDER BY employee_id, to_char(classified_at, 'YYYY-MM'), classified_at DESC
-        ) latest_per_employee_per_month
+        WITH dated AS (
+            SELECT
+                c.employee_id,
+                c.risk_zone,
+                c.classified_at,
+                ls.survey_date
+            FROM classifications c
+            JOIN LATERAL (
+                SELECT MAX(sv.survey_date::date) AS survey_date
+                FROM surveys sv
+                WHERE sv.employee_id = c.employee_id
+                  AND sv.survey_date::date <= c.classified_at::date
+            ) ls ON ls.survey_date IS NOT NULL
+        ),
+        bucketed AS (
+            SELECT
+                to_char(survey_date, 'MM-YYYY') AS month,
+                employee_id,
+                risk_zone,
+                ROW_NUMBER() OVER (
+                    PARTITION BY employee_id, to_char(survey_date, 'MM-YYYY')
+                    ORDER BY classified_at DESC
+                ) AS rn
+            FROM dated
+        )
+        SELECT month, risk_zone, COUNT(DISTINCT employee_id) AS cnt
+        FROM bucketed
+        WHERE rn = 1
         GROUP BY month, risk_zone
         ORDER BY month
     """)
     rows = cur.fetchall()
     conn.close()
-
+ 
     months: dict[str, dict] = {}
     for r in rows:
         bucket = months.setdefault(r["month"], {"month": r["month"], "GREEN": 0, "AMBER": 0, "RED": 0})
         bucket[r["risk_zone"]] = r["cnt"]
     return list(months.values())
-
 
 # ── Department / team aggregates ────────────────────────────────────────────
 

@@ -18,7 +18,7 @@ import {
 import {
   Users, Smile, AlertTriangle, ArrowLeftRight,
   Brain, RefreshCw, Play, TrendingUp, ChevronRight,
-  ShieldAlert, Building2, CheckCircle, Sparkles,
+  ShieldAlert, Building2, CheckCircle, Sparkles,TrendingDown,
   BarChart2, Zap,
 } from "lucide-react"
 import {
@@ -152,10 +152,10 @@ export default function DashboardPage() {
         {/* ── Page header ──────────────────────────────────────── */}
         <div className="page-header">
           <div>
-            <h1 className="page-title">Executive Dashboard</h1>
-            <p className="page-subtitle">
+            <h1 className="page-title">EWS Dashboard</h1>
+            {/* <p className="page-subtitle">
               Workforce intelligence · AI-powered risk monitoring and intervention recommendations
-            </p>
+            </p> */}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -166,7 +166,7 @@ export default function DashboardPage() {
               <RefreshCw className="w-3.5 h-3.5" />
               Refresh
             </button>
-            {model?.has_model && (
+            {/* {model?.has_model && (
               <button
                 onClick={runClassifier}
                 disabled={classifying}
@@ -178,7 +178,7 @@ export default function DashboardPage() {
                   : <><Play className="w-3.5 h-3.5" />Run Classifier</>
                 }
               </button>
-            )}
+            )} */}
           </div>
         </div>
 
@@ -205,13 +205,13 @@ export default function DashboardPage() {
         )} */}
 
         {/* ── KPI row ──────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {loading ? (
-            Array.from({ length: 5 }).map((_, i) => <KpiCardSkeleton key={i} />)
+            Array.from({ length: 4 }).map((_, i) => <KpiCardSkeleton key={i} />)
           ) : (
             <>
               <KpiCard
-                label="Total Monitored"
+                label="Total HeadCount"
                 value={fmt(kpis?.total_employees)}
                 icon={Users}
                 iconColor="blue"
@@ -225,28 +225,28 @@ export default function DashboardPage() {
                 sub="Scale: –1.0 to +1.0"
               />
               <KpiCard
-                label="RED (RED)"
+                label="RED"
                 value={fmt(redCount)}
                 icon={AlertTriangle}
                 iconColor="red"
                 valueColor={redCount > 0 ? "var(--red)" : undefined}
-                sub="Require immediate action"
+                // sub="Require immediate action"
               />
               <KpiCard
-                label="Improved to Green"
+                label="Positive Conversion"
                 value={kpis?.zone_changes?.improved != null ? String(kpis.zone_changes.improved) : "—"}
                 icon={TrendingUp}
                 iconColor="green"
                 valueColor={(kpis?.zone_changes?.improved ?? 0) > 0 ? "var(--green)" : undefined}
-                sub="Moved from RED/AMBER to GREEN"
+                // sub="Moved from RED/AMBER to GREEN"
               />
               <KpiCard
-                label="Fell from Green"
+                label="Negative Conversion"
                 value={kpis?.zone_changes?.escalated != null ? String(kpis.zone_changes.escalated) : "—"}
-                icon={ArrowLeftRight}
+                icon={TrendingDown}
                 iconColor="red"
                 valueColor={(kpis?.zone_changes?.escalated ?? 0) > 0 ? "var(--red)" : undefined}
-                sub="Moved from GREEN to AMBER/RED"
+                // sub="Moved from GREEN to AMBER/RED"
               />
             </>
           )}
@@ -261,7 +261,7 @@ export default function DashboardPage() {
               <div>
                 <h2 className="section-title">
                   <BarChart2 className="w-4 h-4 text-accent" aria-hidden="true" />
-                  Workforce Risk Distribution
+                  3 Months Trend
                 </h2>
                 <p className="section-sub">Zone breakdown across all monitored employees</p>
               </div>
@@ -287,7 +287,7 @@ export default function DashboardPage() {
               <div
                 className="chart-container"
                 role="img"
-                aria-label="Area chart showing GREEN, AMBER, and RED employee counts by classifier run"
+                aria-label="Area chart showing stable, watch, and critical employee counts by survey month"
               >
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={trendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -463,9 +463,9 @@ export default function DashboardPage() {
                   <Sparkles className="w-4 h-4 text-violet" aria-hidden="true" />
                   AI Executive Summary
                 </h2>
-                <p className="section-sub">
+                {/* <p className="section-sub">
                   LLM-generated thematic analysis of recent employee feedback
-                </p>
+                </p> */}
               </div>
               <button
                 onClick={generateSummary}
@@ -579,7 +579,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Top RED employees */}
-            {REDEmps.length > 0 && (
+            {/* {REDEmps.length > 0 && (
               <div className="card">
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -624,7 +624,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
           </div>
         </div>
 

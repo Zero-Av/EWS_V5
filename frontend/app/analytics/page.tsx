@@ -169,7 +169,7 @@ export default function AnalyticsPage() {
 
         {/* Survey upload */}
         <div className="card">
-          <h2 className="section-title mb-1"><UploadCloud className="w-4 h-4 text-accent" />Upload Survey Data</h2>
+          <h2 className="section-title mb-1"><UploadCloud className="w-4 h-4 text-accent" />Upload Connect Data</h2>
           <p className="text-xs text-muted mb-4">
             Upload a CSV with columns: <code className="font-mono bg-surface2 px-1 py-0.5 rounded text-[10px]">employee_id, survey_date, comments</code>.
             Sentiment and topic analysis run automatically.

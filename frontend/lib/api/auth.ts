@@ -11,7 +11,7 @@ import { BASE, authHeaders, handleResponse } from "./_core"
 export interface TokenResponse {
   access_token: string
   token_type:   string
-  role:         "admin" | "hrbp" | "manager"
+  role:         "admin" | "analyst" | "manager"
   full_name:    string
 }
 

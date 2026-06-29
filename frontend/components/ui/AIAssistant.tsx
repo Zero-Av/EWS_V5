@@ -146,10 +146,10 @@ export default function AIAssistant({
               {messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full py-8 text-center">
                   <Brain className="w-10 h-10 mb-3 text-violet opacity-60" aria-hidden="true" />
-                  <p className="text-sm font-semibold text-text mb-1">Ask about your workforce</p>
-                  <p className="text-xs text-muted mb-5 max-w-xs">
+                  <p className="text-sm font-semibold text-text mb-1">Ask about your Employee</p>
+                  {/* <p className="text-xs text-muted mb-5 max-w-xs">
                     I can analyse sentiment trends, summarise risk patterns, and recommend actions.
-                  </p>
+                  </p> */}
                   <div className="space-y-2 w-full" role="list" aria-label="Suggested questions">
                     {SUGGESTED.map(s => (
                       <button

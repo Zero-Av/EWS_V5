@@ -10,11 +10,20 @@ import {
   getEmployeeSentiment, generateEmployeeRecommendation,
   getEmployeeProfile, saveEmployeeProfile, classifyEmployeeManual,
 } from "@/lib/api"
-import type { EmployeeProfileData, ManualClassifyResult } from "@/lib/api/employees"
+import type {
+  EmployeeProfileData, ManualClassifyResult, RagZone,
+  PRIMARY_CONCERNS, SECONDARY_REASONS, HRBP_CONNECT_MONTHS,
+} from "@/lib/api/employees"
+import {
+  PRIMARY_CONCERNS as PC_LIST,
+  SECONDARY_REASONS as SR_LIST,
+  HRBP_CONNECT_MONTHS as MONTHS,
+} from "@/lib/api/employees"
 import {
   Search, Play, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   TrendingDown, MessageSquare, Brain, ShieldAlert, Sparkles,
-  CheckCircle, Save, Zap, Calendar,
+  CheckCircle, Save, Zap, Calendar, User, Briefcase, MapPin,
+  Award, Clock, Star, Activity,
 } from "lucide-react"
 import {
   ResponsiveContainer, LineChart, Line,
@@ -30,48 +39,207 @@ type Zone = "ALL" | "RED" | "AMBER" | "GREEN"
 const ZONE_COLORS: Record<string, string> = {
   GREEN: "#16A34A", AMBER: "#D97706", RED: "#DC2626",
 }
-
 const ZONE_BG: Record<string, string> = {
   GREEN: "var(--green-light)", AMBER: "var(--amber-light)", RED: "var(--red-light)",
 }
-
 const ZONE_BORDER: Record<string, string> = {
   GREEN: "#86EFAC", AMBER: "#FCD34D", RED: "#FCA5A5",
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// METRIC SLIDER — single field row with label + range + value bubble
+// FIELD LABEL — small uppercase section header
 // ─────────────────────────────────────────────────────────────────────────────
-function MetricSlider({
-  label, field, value, onChange, min = 1, max = 10, step = 1, invertColor = false,
-}: {
-  label: string; field: string; value: number | null | undefined
-  onChange: (field: string, v: number) => void
-  min?: number; max?: number; step?: number; invertColor?: boolean
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[10px] font-bold uppercase tracking-widest text-muted mb-1.5">
+      {children}
+    </p>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INFO CHIP — read-only employee attribute pill
+// ─────────────────────────────────────────────────────────────────────────────
+function InfoChip({ icon: Icon, label, value }: {
+  icon: React.ElementType; label: string; value?: string | number | null
 }) {
-  const v = value ?? 5
-  const pct = ((v - min) / (max - min)) * 100
-  // For stress/workload/absenteeism, HIGH value = RED; for others HIGH = GREEN
-  const dangerPct = invertColor ? pct : 100 - pct
-  const color = dangerPct > 66 ? "var(--red)" : dangerPct > 33 ? "var(--amber)" : "var(--green)"
+  if (!value && value !== 0) return null
+  return (
+    <div
+      className="flex items-center gap-2 rounded-lg px-3 py-2 border"
+      style={{ background: "var(--surface)", borderColor: "var(--border)" }}
+    >
+      <Icon className="w-3.5 h-3.5 flex-shrink-0 text-accent" />
+      <div className="min-w-0">
+        <p className="text-[9px] uppercase tracking-widest text-muted leading-none mb-0.5">{label}</p>
+        <p className="text-xs font-semibold truncate" style={{ color: "var(--text)" }}>{value}</p>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RATING SLIDER — 1.0–5.0 scale with star-style color
+// ─────────────────────────────────────────────────────────────────────────────
+function RatingSlider({
+  value, onChange,
+}: { value: number | null | undefined; onChange: (v: number) => void }) {
+  const v = value ?? 3.0
+  const pct = ((v - 1) / (5 - 1)) * 100
+  const color = v >= 4 ? "var(--green)" : v >= 3 ? "var(--amber)" : "var(--red)"
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-muted">
-          {label}
-        </label>
-        <span className="text-sm font-extrabold font-mono" style={{ color }}>{v}</span>
+        <div className="flex gap-0.5">
+          {[1, 2, 3, 4, 5].map(s => (
+            <span key={s} className="text-base" style={{ color: s <= Math.round(v) ? "#F59E0B" : "var(--border2)" }}>★</span>
+          ))}
+        </div>
+        <span className="text-lg font-extrabold font-mono" style={{ color }}>{v.toFixed(1)}</span>
       </div>
       <input
-        type="range" min={min} max={max} step={step} value={v}
-        onChange={e => onChange(field, Number(e.target.value))}
+        type="range" min={1} max={5} step={0.1} value={v}
+        onChange={e => onChange(Number(e.target.value))}
         className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
         style={{
           background: `linear-gradient(to right, ${color} 0%, ${color} ${pct}%, var(--border2) ${pct}%, var(--border2) 100%)`,
           accentColor: color,
         }}
       />
+      <div className="flex justify-between text-[9px] text-muted">
+        <span>1.0 · Needs Improvement</span>
+        <span>5.0 · Exceptional</span>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SCORE SLIDER — 0–10 engagement score
+// ─────────────────────────────────────────────────────────────────────────────
+function ScoreSlider({
+  value, onChange,
+}: { value: number | null | undefined; onChange: (v: number) => void }) {
+  const v = value ?? 5
+  const pct = (v / 10) * 100
+  const color = v >= 7 ? "var(--green)" : v >= 4 ? "var(--amber)" : "var(--red)"
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted">
+          {v >= 7 ? "Engaged" : v >= 4 ? "At Risk" : "Disengaged"}
+        </p>
+        <span className="text-lg font-extrabold font-mono" style={{ color }}>{v}<span className="text-xs text-muted">/10</span></span>
+      </div>
+      <input
+        type="range" min={0} max={10} step={1} value={v}
+        onChange={e => onChange(Number(e.target.value))}
+        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+        style={{
+          background: `linear-gradient(to right, ${color} 0%, ${color} ${pct}%, var(--border2) ${pct}%, var(--border2) 100%)`,
+          accentColor: color,
+        }}
+      />
+      <div className="flex justify-between text-[9px] text-muted">
+        <span>0 · Disengaged</span>
+        <span>10 · Highly Engaged</span>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAG ZONE PICKER — reusable for current + previous RAG
+// ─────────────────────────────────────────────────────────────────────────────
+function RagPicker({
+  value, onChange, label, allowClear = true,
+}: {
+  value: RagZone | string | null | undefined
+  onChange: (v: RagZone | null) => void
+  label?: string
+  allowClear?: boolean
+}) {
+  return (
+    <div>
+      {label && <FieldLabel>{label}</FieldLabel>}
+      <div className="flex gap-2 flex-wrap">
+        {(["GREEN", "AMBER", "RED"] as RagZone[]).map(z => {
+          const active = value === z
+          return (
+            <button
+              key={z}
+              type="button"
+              onClick={() => onChange(active && allowClear ? null : z)}
+              className="px-4 py-2 rounded-lg text-xs font-bold border-2 transition-all duration-150"
+              style={{
+                background:  active ? ZONE_BG[z]     : "var(--surface2)",
+                borderColor: active ? ZONE_BORDER[z] : "var(--border)",
+                color:       active ? ZONE_COLORS[z] : "var(--muted)",
+                transform:   active ? "scale(1.04)"  : "scale(1)",
+                boxShadow:   active ? `0 0 0 3px ${ZONE_BORDER[z]}40` : "none",
+              }}
+            >
+              <span
+                className="inline-block w-2 h-2 rounded-full mr-1.5"
+                style={{ background: active ? ZONE_COLORS[z] : "var(--subtle)" }}
+              />
+              {z}
+            </button>
+          )
+        })}
+        {allowClear && value && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="px-3 py-2 rounded-lg text-xs text-muted border border-dashed border-border hover:border-border2 transition-all"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FORM SELECT — styled dropdown consistent with design system
+// ─────────────────────────────────────────────────────────────────────────────
+function FormSelect({
+  label, value, onChange, options, placeholder = "— Select —", nullable = true,
+}: {
+  label: string
+  value: string | null | undefined
+  onChange: (v: string | null) => void
+  options: readonly string[] | string[]
+  placeholder?: string
+  nullable?: boolean
+}) {
+  return (
+    <div className="space-y-1.5">
+      <FieldLabel>{label}</FieldLabel>
+      <select
+        className="input w-full"
+        value={value ?? ""}
+        onChange={e => onChange(e.target.value === "" ? null : e.target.value)}
+      >
+        {nullable && <option value="">{placeholder}</option>}
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION DIVIDER — horizontal rule with label
+// ─────────────────────────────────────────────────────────────────────────────
+function SectionDivider({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <Icon className="w-3.5 h-3.5 text-accent flex-shrink-0" />
+      <span className="text-[10px] font-bold uppercase tracking-widest text-accent">{title}</span>
+      <div className="flex-1 h-px" style={{ background: "var(--accent-mid)" }} />
     </div>
   )
 }
@@ -85,40 +253,44 @@ function EmployeeAccordionRow({
   emp: any; colSpan: number; onClose: () => void
 }) {
   type Tab = "assessment" | "history"
-  const [tab,          setTab]          = useState<Tab>("assessment")
-  const [sentData,     setSentData]     = useState<any>(null)
-  const [sentLoading,  setSentLoading]  = useState(false)
-  const [sentError,    setSentError]    = useState("")
-  const [saving,       setSaving]       = useState(false)
-  const [classifying,  setClassifying]  = useState(false)
-  const [generating,   setGenerating]   = useState(false)
-  const [classResult,  setClassResult]  = useState<ManualClassifyResult | null>(null)
+  const [tab,           setTab]          = useState<Tab>("assessment")
+  const [sentData,      setSentData]     = useState<any>(null)
+  const [sentLoading,   setSentLoading]  = useState(false)
+  const [sentError,     setSentError]    = useState("")
+  const [saving,        setSaving]       = useState(false)
+  const [classifying,   setClassifying]  = useState(false)
+  const [generating,    setGenerating]   = useState(false)
+  const [classResult,   setClassResult]  = useState<ManualClassifyResult | null>(null)
   const [profileLoaded, setProfileLoaded] = useState(false)
   const toast = useToast()
 
-  // ── Form state ──────────────────────────────────────────────────────────────
+  // ── Form defaults ────────────────────────────────────────────────────────
   const DEFAULTS: EmployeeProfileData = {
-    happiness_score: 5, excitement_level: 5, stress_level: 5,
-    workload_level: 5, work_life_balance: 5, manager_support: 5,
-    job_satisfaction: 5, productivity: 5, team_collaboration: 5,
-    career_growth: 5, absenteeism: 5, score: 50,
-    comments: "", hrbp_risk_zone: null,
+    rating:             null,
+    employee_status:    "Active",
+    hrbp_connect_month: null,
+    ageing:             null,
+    hrbp_risk_zone:     null,
+    previous_rag:       null,
+    previous_concern:   null,
+    primary_concern:    null,
+    secondary_reason:   null,
+    score:              5,
+    comments:           "",
   }
   const [form, setForm] = useState<EmployeeProfileData>(DEFAULTS)
 
-  // ── Load saved profile on mount ─────────────────────────────────────────────
+  // ── Load saved profile on mount ──────────────────────────────────────────
   useEffect(() => {
     getEmployeeProfile(emp.employee_id)
       .then(p => {
-        if (p && Object.keys(p).length > 0) {
-          setForm(prev => ({ ...prev, ...p }))
-        }
+        if (p && Object.keys(p).length > 0) setForm(prev => ({ ...prev, ...p }))
         setProfileLoaded(true)
       })
       .catch(() => setProfileLoaded(true))
   }, [emp.employee_id])
 
-  // ── Load sentiment history when history tab is opened ──────────────────────
+  // ── Load sentiment history when history tab is opened ───────────────────
   useEffect(() => {
     if (tab !== "history" || sentData) return
     setSentLoading(true)
@@ -127,10 +299,10 @@ function EmployeeAccordionRow({
       .finally(() => setSentLoading(false))
   }, [tab, emp.employee_id, sentData])
 
-  const setField = (field: string, val: any) =>
+  const setField = (field: keyof EmployeeProfileData, val: any) =>
     setForm(prev => ({ ...prev, [field]: val }))
 
-  // ── Actions ──────────────────────────────────────────────────────────────────
+  // ── Actions ──────────────────────────────────────────────────────────────
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -173,18 +345,26 @@ function EmployeeAccordionRow({
 
   const topFactors: any[] = Array.isArray(emp.top_factors) ? emp.top_factors : []
 
+  // Helper: format ageing days as readable string
+  const formatAgeing = (days: number | null | undefined) => {
+    if (!days && days !== 0) return null
+    if (days < 30)  return `${days}d`
+    if (days < 365) return `${Math.round(days / 30)}mo`
+    return `${(days / 365).toFixed(1)}yr`
+  }
+
   return (
     <tr>
       <td colSpan={colSpan} className="p-0">
         <div
           className="mx-2 mb-3 rounded-xl border overflow-hidden"
           style={{
-            background: "var(--surface)",
+            background:  "var(--surface)",
             borderColor: "var(--border2)",
-            boxShadow: "var(--shadow-hover)",
+            boxShadow:   "var(--shadow-hover)",
           }}
         >
-          {/* ── Accordion header ──────────────────────────────────────────── */}
+          {/* ── Accordion header ─────────────────────────────────────── */}
           <div
             className="flex items-center justify-between px-5 py-3 border-b"
             style={{ background: "var(--surface2)", borderColor: "var(--border)" }}
@@ -204,7 +384,7 @@ function EmployeeAccordionRow({
             </div>
           </div>
 
-          {/* ── Tab switcher ──────────────────────────────────────────────── */}
+          {/* ── Tab switcher ─────────────────────────────────────────── */}
           <div className="px-5 pt-4 pb-0">
             <div className="tab-group w-fit">
               {(["assessment", "history"] as Tab[]).map(t => (
@@ -219,9 +399,9 @@ function EmployeeAccordionRow({
             </div>
           </div>
 
-          {/* ═══════════════════════════════════════════════════════════════
+          {/* ═══════════════════════════════════════════════════════════
               TAB: ASSESSMENT FORM
-          ═══════════════════════════════════════════════════════════════ */}
+          ═══════════════════════════════════════════════════════════ */}
           {tab === "assessment" && (
             <div className="p-5 space-y-6">
               {!profileLoaded && (
@@ -230,83 +410,150 @@ function EmployeeAccordionRow({
                 </div>
               )}
 
-              {/* ── Metric sliders grid ───────────────────────────────── */}
+              {/* ── Employee context strip ───────────────────────────── */}
+              {(emp.name || emp.designation || emp.skill || emp.project || emp.location || emp.experience || emp.tenure) && (
+                <div>
+                  <SectionDivider icon={User} title="Employee Context" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mt-3">
+                    {emp.name          && <InfoChip icon={User}     label="Name"         value={emp.name} />}
+                    {emp.designation   && <InfoChip icon={Award}    label="Designation"  value={emp.designation} />}
+                    {emp.skill         && <InfoChip icon={Brain}    label="Skill"        value={emp.skill} />}
+                    {emp.project       && <InfoChip icon={Briefcase} label="Project"     value={emp.project} />}
+                    {emp.primary_ro    && <InfoChip icon={User}     label="Primary RO"   value={emp.primary_ro} />}
+                    {emp.manager       && <InfoChip icon={User}     label="Manager"      value={emp.manager} />}
+                    {emp.experience    && <InfoChip icon={Clock}    label="Experience"   value={`${emp.experience}yr`} />}
+                    {emp.tenure        && <InfoChip icon={Clock}    label="Tenure"       value={`${emp.tenure}yr`} />}
+                    {emp.location      && <InfoChip icon={MapPin}   label="Location"     value={emp.location} />}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Performance rating ───────────────────────────────── */}
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-muted mb-3">
-                  Current Metrics  <span className="font-normal normal-case">(1 = lowest · 10 = highest)</span>
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
-                  <MetricSlider label="Happiness"        field="happiness_score"    value={form.happiness_score}    onChange={setField} />
-                  <MetricSlider label="Excitement"       field="excitement_level"   value={form.excitement_level}   onChange={setField} />
-                  <MetricSlider label="Manager Support"  field="manager_support"    value={form.manager_support}    onChange={setField} />
-                  <MetricSlider label="Job Satisfaction" field="job_satisfaction"   value={form.job_satisfaction}   onChange={setField} />
-                  <MetricSlider label="Productivity"     field="productivity"       value={form.productivity}       onChange={setField} />
-                  <MetricSlider label="Work-Life Balance" field="work_life_balance" value={form.work_life_balance}  onChange={setField} />
-                  <MetricSlider label="Team Collaboration" field="team_collaboration" value={form.team_collaboration} onChange={setField} />
-                  <MetricSlider label="Career Growth"    field="career_growth"      value={form.career_growth}      onChange={setField} />
-                  {/* High = bad for these three */}
-                  <MetricSlider label="Stress Level"    field="stress_level"       value={form.stress_level}       onChange={setField} invertColor />
-                  <MetricSlider label="Workload Level"  field="workload_level"     value={form.workload_level}     onChange={setField} invertColor />
-                  <MetricSlider label="Absenteeism"     field="absenteeism"        value={form.absenteeism}        onChange={setField} invertColor />
-                  {/* eNPS 0-100 */}
-                  <MetricSlider label="Overall Score (eNPS)" field="score"         value={form.score}              onChange={setField} min={0} max={100} step={1} />
+                <SectionDivider icon={Star} title="Performance Rating" />
+                <div className="mt-3">
+                  <FieldLabel>Annual Rating 2025–2026  <span className="font-normal normal-case">(1.0 = lowest · 5.0 = highest)</span></FieldLabel>
+                  <RatingSlider
+                    value={form.rating}
+                    onChange={v => setField("rating", v)}
+                  />
                 </div>
               </div>
 
-              {/* ── Comments ─────────────────────────────────────────── */}
+              {/* ── Status & connect ─────────────────────────────────── */}
               <div>
-                <label className="label">HRBP Notes / Comments</label>
-                <textarea
-                  className="input resize-none"
-                  rows={3}
-                  placeholder="Add qualitative observations about this employee's current situation…"
-                  value={form.comments ?? ""}
-                  onChange={e => setField("comments", e.target.value)}
-                />
-              </div>
-
-              {/* ── Manual zone selector ─────────────────────────────── */}
-              <div>
-                <p className="label mb-2">Manually Assign Risk Zone  <span className="font-normal normal-case text-muted">(HRBP override)</span></p>
-                <div className="flex gap-2 flex-wrap">
-                  {(["GREEN", "AMBER", "RED"] as const).map(z => {
-                    const active = form.hrbp_risk_zone === z
-                    return (
-                      <button
-                        key={z}
-                        onClick={() => setField("hrbp_risk_zone", active ? null : z)}
-                        className="px-4 py-2 rounded-lg text-xs font-bold border-2 transition-all duration-150"
-                        style={{
-                          background: active ? ZONE_BG[z] : "var(--surface2)",
-                          borderColor: active ? ZONE_BORDER[z] : "var(--border)",
-                          color: active ? ZONE_COLORS[z] : "var(--muted)",
-                          transform: active ? "scale(1.04)" : "scale(1)",
-                          boxShadow: active ? `0 0 0 3px ${ZONE_BORDER[z]}40` : "none",
-                        }}
-                      >
-                        <span className="inline-block w-2 h-2 rounded-full mr-1.5"
-                          style={{ background: active ? ZONE_COLORS[z] : "var(--subtle)" }} />
-                        {z === "GREEN" ? "GREEN" : z === "AMBER" ? "AMBER" : "RED"}
-                      </button>
-                    )
-                  })}
-                  {form.hrbp_risk_zone && (
-                    <button
-                      onClick={() => setField("hrbp_risk_zone", null)}
-                      className="px-3 py-2 rounded-lg text-xs text-muted border border-dashed border-border hover:border-border2 transition-all"
-                    >
-                      Clear
-                    </button>
-                  )}
+                <SectionDivider icon={Activity} title="Status &amp; Connect" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
+                  <FormSelect
+                    label="Employee Status"
+                    value={form.employee_status}
+                    onChange={v => setField("employee_status", v)}
+                    options={["Active", "On Leave", "Notice Period"]}
+                    nullable={false}
+                  />
+                  <FormSelect
+                    label="HRBP Connect Month"
+                    value={form.hrbp_connect_month}
+                    onChange={v => setField("hrbp_connect_month", v)}
+                    options={MONTHS as unknown as string[]}
+                    placeholder="— Not set —"
+                  />
+                  <div className="space-y-1.5">
+                    <FieldLabel>Ageing (days in RAG)</FieldLabel>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min={0}
+                        className="input w-full pr-12"
+                        placeholder="e.g. 30"
+                        value={form.ageing ?? ""}
+                        onChange={e => setField("ageing", e.target.value === "" ? null : Number(e.target.value))}
+                      />
+                      {form.ageing != null && (
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted">
+                          {formatAgeing(form.ageing)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* ── Classification result ─────────────────────────────── */}
+              {/* ── RAG classification ───────────────────────────────── */}
+              <div>
+                <SectionDivider icon={ShieldAlert} title="RAG Classification" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-3">
+                  <RagPicker
+                    label="Current RAG Status (HRBP)"
+                    value={form.hrbp_risk_zone}
+                    onChange={v => setField("hrbp_risk_zone", v)}
+                  />
+                  <RagPicker
+                    label="Previous RAG Status"
+                    value={form.previous_rag}
+                    onChange={v => setField("previous_rag", v)}
+                  />
+                </div>
+              </div>
+
+              {/* ── Concern tracking ─────────────────────────────────── */}
+              <div>
+                <SectionDivider icon={AlertTriangle} title="Concern Tracking" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
+                  <FormSelect
+                    label="Previous Concern"
+                    value={form.previous_concern}
+                    onChange={v => setField("previous_concern", v)}
+                    options={PC_LIST as unknown as string[]}
+                    placeholder="— None recorded —"
+                  />
+                  <FormSelect
+                    label="Primary Concern"
+                    value={form.primary_concern}
+                    onChange={v => setField("primary_concern", v)}
+                    options={PC_LIST as unknown as string[]}
+                    placeholder="— Select concern —"
+                  />
+                  <FormSelect
+                    label="Secondary Reason"
+                    value={form.secondary_reason}
+                    onChange={v => setField("secondary_reason", v)}
+                    options={SR_LIST as unknown as string[]}
+                    placeholder="— Optional —"
+                  />
+                </div>
+              </div>
+
+              {/* ── Engagement score & notes ─────────────────────────── */}
+              <div>
+                <SectionDivider icon={MessageSquare} title="Engagement &amp; Notes" />
+                <div className="mt-3 space-y-4">
+                  <div>
+                    <FieldLabel>Engagement Score  <span className="font-normal normal-case">(0 = disengaged · 10 = highly engaged)</span></FieldLabel>
+                    <ScoreSlider
+                      value={form.score}
+                      onChange={v => setField("score", v)}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>HRBP Notes / Comments</FieldLabel>
+                    <textarea
+                      className="input resize-none"
+                      rows={3}
+                      placeholder="Add qualitative observations — concerns raised, context, next steps…"
+                      value={form.comments ?? ""}
+                      onChange={e => setField("comments", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Classification result ────────────────────────────── */}
               {classResult && (
                 <div
                   className="rounded-xl p-4 border flex items-start gap-3"
                   style={{
-                    background: ZONE_BG[classResult.risk_zone],
+                    background:  ZONE_BG[classResult.risk_zone],
                     borderColor: ZONE_BORDER[classResult.risk_zone],
                   }}
                 >
@@ -320,6 +567,14 @@ function EmployeeAccordionRow({
                         {classResult.risk_score}% risk
                       </span>
                     </div>
+                    {classResult.zone_changed && classResult.previous_zone && (
+                      <p className="text-xs text-muted mb-1">
+                        Zone changed from{" "}
+                        <span className="font-bold" style={{ color: ZONE_COLORS[classResult.previous_zone] }}>
+                          {classResult.previous_zone}
+                        </span>
+                      </p>
+                    )}
                     {classResult.top_factors.length > 0 && (
                       <div className="mt-2 space-y-1 font-mono text-xs">
                         {classResult.top_factors.slice(0, 3).map((f: any) => (
@@ -339,7 +594,7 @@ function EmployeeAccordionRow({
                 </div>
               )}
 
-              {/* ── Action buttons ────────────────────────────────────── */}
+              {/* ── Action buttons ───────────────────────────────────── */}
               <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
                 <button
                   onClick={handleClassify}
@@ -375,9 +630,9 @@ function EmployeeAccordionRow({
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════════
+          {/* ═══════════════════════════════════════════════════════════
               TAB: SENTIMENT HISTORY
-          ═══════════════════════════════════════════════════════════════ */}
+          ═══════════════════════════════════════════════════════════ */}
           {tab === "history" && (
             <div className="p-5 space-y-5">
               {sentLoading && (
@@ -464,7 +719,7 @@ function EmployeeAccordionRow({
                     </div>
                   )}
 
-                  {/* Survey history entries */}
+                  {/* Survey history */}
                   {sentData.history?.length > 0 && (
                     <div>
                       <h3 className="section-title mb-3"><Calendar className="w-4 h-4 text-muted" />Survey History ({sentData.history.length})</h3>
@@ -560,7 +815,7 @@ function EmployeeListInner() {
 
   return (
     <div className="page-container animate-fade-up">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Employee Risk Monitor</h1>
@@ -576,7 +831,7 @@ function EmployeeListInner() {
         </button>
       </div>
 
-      {/* ── Filters ────────────────────────────────────────────────────────── */}
+      {/* ── Filters ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-5">
         <div className="search-wrap w-full sm:w-72">
           <Search className="w-4 h-4" aria-hidden="true" />
@@ -616,7 +871,7 @@ function EmployeeListInner() {
         </span>
       </div>
 
-      {/* ── Table ──────────────────────────────────────────────────────────── */}
+      {/* ── Table ───────────────────────────────────────────────────────── */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
         <div className="overflow-x-auto">
           <table className="data-table" aria-label="Employee risk directory">
@@ -655,14 +910,14 @@ function EmployeeListInner() {
                           <span
                             className="badge text-[10px]"
                             style={{
-                              background: ZONE_BG[r.hrbp_risk_zone],
+                              background:  ZONE_BG[r.hrbp_risk_zone],
                               borderColor: ZONE_BORDER[r.hrbp_risk_zone],
-                              color: ZONE_COLORS[r.hrbp_risk_zone],
+                              color:       ZONE_COLORS[r.hrbp_risk_zone],
                             }}
                           >
                             <span className="w-1.5 h-1.5 rounded-full inline-block mr-1"
                               style={{ background: ZONE_COLORS[r.hrbp_risk_zone] }} />
-                            {r.hrbp_risk_zone === "GREEN" ? "GREEN" : r.hrbp_risk_zone === "AMBER" ? "AMBER" : "RED"}
+                            {r.hrbp_risk_zone}
                           </span>
                         ) : (
                           <span className="text-xs text-muted italic">Not set</span>
