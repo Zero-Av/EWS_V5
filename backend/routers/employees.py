@@ -276,7 +276,7 @@ async def classify_employee_manual(
     # are computed in the correct direction (oldest → newest)
     combined_df = (
         pd.concat([history_df, new_row_df], ignore_index=True)
-        .sort_values("survey_date")
+        .sort_values("survey_date",key =lambda col: pd.to_datetime(col))
         .reset_index(drop=True)
     )
 
