@@ -23,12 +23,13 @@ import {
   Search, Play, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
   TrendingDown, MessageSquare, Brain, ShieldAlert, Sparkles,
   CheckCircle, Save, Zap, Calendar, User, Briefcase, MapPin,
-  Award, Clock, Star, Activity,
+  Award, Clock, Star, Activity,ExternalLink,
 } from "lucide-react"
 import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts"
+import Link from "next/link"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -378,6 +379,15 @@ function EmployeeAccordionRow({
             </div>
             <div className="flex items-center gap-2">
               <RiskBadge zone={emp.risk_zone} score={emp.risk_score} showScore />
+              <Link
+                href={`/employees/${encodeURIComponent(emp.employee_id)}`}
+                onClick={e => e.stopPropagation()}
+                className="btn-ghost btn-sm flex items-center gap-1 text-xs"
+                title="Open full profile"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Profile
+              </Link>
               <button onClick={onClose} className="btn-icon" aria-label="Collapse">
                 <ChevronUp className="w-4 h-4" />
               </button>
@@ -652,7 +662,7 @@ function EmployeeAccordionRow({
                     {[
                       { label: "Avg Sentiment", value: sentData.avg_sentiment > 0 ? `+${sentData.avg_sentiment}` : sentData.avg_sentiment, color: sentData.avg_sentiment >= 0 ? "var(--green)" : "var(--red)" },
                       { label: "Velocity",      value: sentData.sentiment_velocity > 0 ? `+${sentData.sentiment_velocity}` : sentData.sentiment_velocity, color: sentData.sentiment_velocity >= 0 ? "var(--green)" : "var(--red)" },
-                      { label: "Survey Count",  value: sentData.survey_count, color: "var(--text)" },
+                      { label: "Connect Count",  value: sentData.survey_count, color: "var(--text)" },
                     ].map(s => (
                       <div key={s.label} className="rounded-xl p-3 text-center border border-border" style={{ background: "var(--surface2)" }}>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{s.label}</p>
@@ -719,10 +729,10 @@ function EmployeeAccordionRow({
                     </div>
                   )}
 
-                  {/* Survey history */}
+                  {/* Connect history */}
                   {sentData.history?.length > 0 && (
                     <div>
-                      <h3 className="section-title mb-3"><Calendar className="w-4 h-4 text-muted" />Survey History ({sentData.history.length})</h3>
+                      <h3 className="section-title mb-3"><Calendar className="w-4 h-4 text-muted" />Connect History ({sentData.history.length})</h3>
                       <div className="space-y-2.5">
                         {sentData.history.map((h: any, i: number) => {
                           const lbl = h.sentiment_label ?? "neutral"
